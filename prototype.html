@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>宝宝日记 v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --cr:#FBF8F2;--bd:#E2D9C8;
+  --mint:#4AB89A;--ml:#E8F7F3;--md:#2D8A70;
+  --amb:#E8A030;--al:#FEF4E0;--ad:#B87010;
+  --sky:#5A9ED4;--sl:#EBF4FC;--sd:#3070A8;
+  --ind:#3D4F8C;--il:#ECEFFE;--id:#263070;
+  --rose:#D4607A;--rl:#FAEAEE;--rd:#A83050;
+  --lav:#9B7EC8;--ll:#F0ECFB;--ld:#6A50A0;
+  --grn:#5AA870;--gl:#EBF5EE;--gd:#2D7840;
+  --red:#D84040;--redl:#FDEAEA;
+  --g50:#FAF9F7;--g100:#F2EEE8;--g200:#E4DDD0;--g300:#C8BFB0;
+  --g400:#9C9080;--g500:#6E6860;--g600:#4A4438;--g900:#1C1810;
+  --fs:'Noto Serif SC',serif;--fn:'Noto Sans SC',sans-serif;
+  --r:16px;--rs:10px;--rp:999px;
+  --sh:0 2px 14px rgba(50,35,10,.07);--shl:0 6px 28px rgba(50,35,10,.13);
+}
+body{font-family:var(--fn);background:#A89888;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px 0 40px;}
+#app{width:375px;height:812px;border-radius:44px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.09),0 20px 60px rgba(0,0,0,.25);background:var(--cr);position:relative;}
+
+.sc{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--cr);opacity:0;pointer-events:none;transition:opacity .18s;}
+.sc.on{opacity:1;pointer-events:all;}
+.ms{flex:1;overflow-y:auto;overflow-x:hidden;}
+.ms::-webkit-scrollbar{width:0;}
+
+/* ── Base UI ── */
+.sb{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:600;flex-shrink:0;}
+.sb.lt{color:white;background:transparent;}
+.sb.dk{color:var(--g900);background:white;}
+.nv{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;flex-shrink:0;}
+.nv.wh{background:white;border-bottom:1px solid var(--bd);}
+.nv.tr{background:transparent;position:relative;z-index:2;}
+.bk{width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.nv.wh .bk{background:var(--g100);color:var(--g600);}
+.nv.tr .bk{background:rgba(255,255,255,.22);color:white;}
+.nt{font-family:var(--fs);font-size:16px;font-weight:600;flex:1;}
+.nv.wh .nt{color:var(--g900);}
+.nv.tr .nt{color:white;}
+.na{font-size:13px;font-weight:600;color:var(--mint);border:none;background:none;cursor:pointer;font-family:var(--fn);}
+.bnav{background:rgba(251,248,242,.97);backdrop-filter:blur(14px);border-top:1px solid var(--bd);display:flex;padding:8px 0 18px;flex-shrink:0;}
+.bt{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;border:none;background:none;font-family:var(--fn);}
+.bt-i{font-size:20px;line-height:1;}
+.bt-l{font-size:10px;font-weight:500;color:var(--g400);}
+.bt.on .bt-l{color:var(--mint);}
+.fab{position:absolute;right:20px;bottom:90px;width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;color:white;box-shadow:0 4px 20px rgba(0,0,0,.22);z-index:5;}
+.fab.ind{background:linear-gradient(135deg,var(--ind),var(--id));}
+.fab.mint{background:linear-gradient(135deg,var(--mint),var(--md));}
+
+/* ── Heroes ── */
+.h-mint{background:linear-gradient(148deg,#1A5848 0%,#4AB89A 45%,#88D8C0 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-ind{background:linear-gradient(148deg,#263070 0%,#3D4F8C 45%,#7888CC 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-lav{background:linear-gradient(148deg,#5A3888 0%,#9B7EC8 45%,#C8B0E8 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-rose{background:linear-gradient(148deg,#882040 0%,#D4607A 45%,#F0A8B8 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-amb{background:linear-gradient(148deg,#805010 0%,#E8A030 45%,#F8D080 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-grn{background:linear-gradient(148deg,#1A5028 0%,#5AA870 45%,#A0D0A8 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+.h-warm{background:linear-gradient(148deg,#4A3828 0%,#8C6848 45%,#C0A080 100%);padding:0 18px 20px;flex-shrink:0;position:relative;overflow:hidden;}
+[class^="h-"]::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 76% 8%,rgba(255,255,255,.18) 0%,transparent 55%);}
+.hl{font-size:11px;color:rgba(255,255,255,.72);letter-spacing:.08em;margin-bottom:3px;position:relative;z-index:1;}
+.hbig{font-family:var(--fs);font-size:40px;font-weight:700;color:white;line-height:1;position:relative;z-index:1;}
+.hbig span{font-size:17px;font-weight:400;opacity:.85;}
+.hsub{font-size:12px;color:rgba(255,255,255,.82);margin-top:3px;position:relative;z-index:1;}
+.hstats{display:flex;gap:7px;margin-top:12px;position:relative;z-index:1;}
+.hst{background:rgba(255,255,255,.18);border-radius:10px;padding:9px 10px;text-align:center;flex:1;}
+.hsv{font-family:var(--fs);font-size:18px;font-weight:700;color:white;line-height:1;}
+.hsl{font-size:9px;color:rgba(255,255,255,.72);margin-top:3px;}
+.hchips{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;position:relative;z-index:1;}
+.hchip{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.25);border-radius:var(--rp);padding:4px 11px;font-size:11px;color:rgba(255,255,255,.9);}
+.hchip strong{color:white;}
+
+/* ── Cards & rows ── */
+.card{background:white;border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;}
+.sec{margin:10px 14px 0;}
+.sechd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.sect{font-family:var(--fs);font-size:14px;font-weight:600;color:var(--g900);}
+.secm{font-size:12px;color:var(--mint);cursor:pointer;border:none;background:none;font-family:var(--fn);}
+.row{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--bd);cursor:pointer;border:none;background:none;width:100%;font-family:var(--fn);text-align:left;transition:background .12s;}
+.row:last-child{border-bottom:none;}
+.row:hover{background:var(--g50);}
+.ric{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;margin-right:12px;}
+.rb{flex:1;min-width:0;}
+.rt{font-size:14px;font-weight:500;color:var(--g900);}
+.rs{font-size:11px;color:var(--g400);margin-top:1px;}
+.rr{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.arr{font-size:14px;color:var(--g300);}
+.tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:var(--rp);}
+.tog{width:40px;height:22px;border-radius:11px;background:var(--g200);position:relative;cursor:pointer;flex-shrink:0;transition:background .2s;border:none;}
+.tog.on{background:var(--mint);}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.tog.on::after{transform:translateX(18px);}
+
+/* ── Forms ── */
+.fp{padding:14px 16px;}
+.ff{margin-bottom:14px;}
+.fl{font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.fi{width:100%;height:44px;background:var(--g100);border:1.5px solid var(--bd);border-radius:var(--rs);padding:0 13px;font-size:14px;font-family:var(--fn);color:var(--g900);outline:none;transition:border-color .15s;}
+.fi:focus{border-color:var(--mint);}
+.fi.big{font-family:var(--fs);font-size:28px;font-weight:700;text-align:center;height:56px;}
+.fta{width:100%;min-height:64px;resize:none;background:var(--g100);border:1.5px solid var(--bd);border-radius:var(--rs);padding:11px 13px;font-size:13px;font-family:var(--fn);color:var(--g900);outline:none;line-height:1.7;}
+.fta:focus{border-color:var(--mint);}
+.seg{display:flex;background:var(--g100);border-radius:var(--rs);padding:3px;gap:3px;}
+.sgb{flex:1;height:34px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fn);background:transparent;color:var(--g500);transition:all .15s;}
+.sgb.on{background:white;color:var(--g900);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.numrow{display:flex;align-items:center;gap:10px;}
+.nmb{width:40px;height:40px;border-radius:50%;background:white;border:1.5px solid var(--bd);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nmv{font-family:var(--fs);font-size:22px;font-weight:700;color:var(--g900);min-width:54px;text-align:center;}
+.nmu{font-size:12px;color:var(--g400);}
+.sbar2{padding:12px 16px 20px;background:white;border-top:1px solid var(--bd);flex-shrink:0;}
+.btn{width:100%;height:48px;border:none;border-radius:var(--rp);font-size:15px;font-weight:600;color:white;cursor:pointer;font-family:var(--fn);}
+.btn.mint{background:linear-gradient(135deg,var(--mint),var(--md));box-shadow:0 4px 14px rgba(74,184,154,.3);}
+.btn.ind{background:linear-gradient(135deg,var(--ind),var(--id));box-shadow:0 4px 14px rgba(61,79,140,.3);}
+.btn.lav{background:linear-gradient(135deg,var(--lav),var(--ld));box-shadow:0 4px 14px rgba(155,126,200,.3);}
+.btn.rose{background:linear-gradient(135deg,var(--rose),var(--rd));box-shadow:0 4px 14px rgba(212,96,122,.3);}
+.btn.amb{background:linear-gradient(135deg,var(--amb),var(--ad));box-shadow:0 4px 14px rgba(232,160,48,.3);}
+.btn.grn{background:linear-gradient(135deg,var(--grn),var(--gd));box-shadow:0 4px 14px rgba(90,168,112,.3);}
+.btn.ghost{background:var(--g100);color:var(--g600);box-shadow:none;}
+.catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.copt{padding:10px 6px;border-radius:var(--rs);background:var(--g100);border:2px solid transparent;cursor:pointer;text-align:center;transition:all .15s;}
+.copt.on{border-color:var(--ind);background:var(--il);}
+.copt-i{font-size:20px;margin-bottom:3px;}
+.copt-l{font-size:10px;font-weight:500;color:var(--g600);}
+.copt.on .copt-l{color:var(--ind);}
+
+/* ── Timeline ── */
+.tl{padding:10px 14px;}
+.tlg{font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 8px;}
+.tli{display:flex;gap:10px;margin-bottom:8px;position:relative;}
+.tli::before{content:'';position:absolute;left:14px;top:28px;bottom:-8px;width:1px;background:var(--bd);}
+.tli:last-child::before{display:none;}
+.tlic{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;z-index:1;}
+.tlib{flex:1;background:white;border-radius:var(--rs);box-shadow:var(--sh);padding:9px 11px;cursor:pointer;}
+.tlit{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+.tlty{font-size:12px;font-weight:700;color:var(--g900);}
+.tltime{font-size:10px;color:var(--g400);}
+.tldet{font-size:12px;color:var(--g500);line-height:1.5;}
+.tldet strong{color:var(--g900);font-weight:600;}
+.tltags{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
+.tltag{font-size:9px;padding:2px 6px;border-radius:var(--rp);}
+
+/* ── Charts ── */
+.cc{background:white;border-radius:var(--r);box-shadow:var(--sh);margin:0 14px 10px;overflow:hidden;}
+.cchd{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 8px;border-bottom:1px solid var(--bd);}
+.cct{font-size:13px;font-weight:600;color:var(--g900);}
+.ccs{font-size:11px;color:var(--g400);}
+.sumrow{display:flex;border-top:1px solid var(--bd);}
+.sumc{flex:1;text-align:center;padding:9px 6px;border-right:1px solid var(--bd);}
+.sumc:last-child{border-right:none;}
+.sumcv{font-family:var(--fs);font-size:16px;font-weight:700;color:var(--g900);}
+.sumcl{font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.slrow{display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--bd);}
+.slrow:last-child{border-bottom:none;}
+.sld{font-size:10px;font-weight:600;color:var(--g500);width:26px;flex-shrink:0;}
+.slbw{flex:1;height:18px;background:var(--g100);border-radius:3px;overflow:hidden;position:relative;margin:0 7px;}
+.slb{height:100%;border-radius:3px;position:absolute;}
+.slt{font-size:11px;font-weight:700;color:var(--g900);width:28px;text-align:right;flex-shrink:0;}
+.dnwrap{display:flex;align-items:center;padding:12px 14px;gap:14px;}
+.dnr{position:relative;width:70px;height:70px;flex-shrink:0;}
+.dnr svg{transform:rotate(-90deg);}
+.dnri{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dnn{font-family:var(--fs);font-size:18px;font-weight:700;color:var(--g900);line-height:1;}
+.dnu{font-size:9px;color:var(--g400);}
+.dnleg{flex:1;display:flex;flex-direction:column;gap:6px;}
+.dnrow{display:flex;align-items:center;gap:7px;}
+.dndot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* ── Expense items ── */
+.expitem{display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;}
+.expitem:last-child{border-bottom:none;}
+.expitem:hover{background:var(--g50);}
+.eiic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;margin-right:11px;}
+.eib{flex:1;min-width:0;}
+.ein{font-size:14px;font-weight:500;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.eim{font-size:11px;color:var(--g400);margin-top:1px;display:flex;align-items:center;gap:5px;}
+.eia{font-size:15px;font-weight:700;color:var(--g900);flex-shrink:0;}
+
+/* ── Growth ── */
+.growthstats{display:grid;grid-template-columns:repeat(3,1fr);}
+.gsitem{padding:12px 10px;border-right:1px solid var(--bd);text-align:center;}
+.gsitem:last-child{border-right:none;}
+.gsv{font-family:var(--fs);font-size:18px;font-weight:700;color:var(--g900);line-height:1;}
+.gsu{font-size:10px;color:var(--g400);}
+.gsl{font-size:9px;font-weight:600;color:var(--g400);text-transform:uppercase;letter-spacing:.05em;margin-top:3px;}
+.gsc{font-size:10px;font-weight:600;color:var(--gd);margin-top:2px;}
+.growthrow{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid var(--bd);}
+.growthrow:last-child{border-bottom:none;}
+.grd{font-size:11px;color:var(--g500);width:40px;flex-shrink:0;}
+.grw{font-size:11px;color:var(--g400);width:44px;flex-shrink:0;}
+.grbw{flex:1;height:16px;background:var(--g100);border-radius:3px;overflow:hidden;position:relative;margin:0 7px;}
+.grb{height:100%;border-radius:3px;}
+.grv{font-size:12px;font-weight:700;color:var(--g900);width:44px;text-align:right;flex-shrink:0;}
+
+/* ── Cat stat ── */
+.csrow{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;}
+.csrow:last-child{border-bottom:none;}
+.csrow:hover{background:var(--g50);}
+.csic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;margin-right:11px;}
+.csb{flex:1;}
+.csn{font-size:14px;font-weight:500;color:var(--g900);margin-bottom:3px;}
+.csbw{height:5px;background:var(--g200);border-radius:2.5px;overflow:hidden;}
+.csbar{height:100%;border-radius:2.5px;}
+.csr{text-align:right;flex-shrink:0;padding-left:10px;}
+.csamt{font-size:15px;font-weight:700;color:var(--g900);}
+.cscnt{font-size:10px;color:var(--g400);margin-top:1px;}
+
+/* ── Vaccine ── */
+.vacitem{display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;}
+.vacitem:last-child{border-bottom:none;}
+.vacitem:hover{background:var(--g50);}
+.vacck{width:22px;height:22px;border-radius:6px;border:2px solid var(--bd);background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:all .15s;margin-right:11px;}
+.vacitem.done .vacck{background:var(--grn);border-color:var(--grn);color:white;}
+.vacitem.done .vacname{text-decoration:line-through;color:var(--g400);}
+.vacname{font-size:14px;font-weight:500;color:var(--g900);flex:1;}
+.vacdate{font-size:11px;color:var(--g400);text-align:right;flex-shrink:0;}
+
+/* ── Overlay ── */
+.overlay{position:absolute;inset:0;background:rgba(28,26,23,.46);z-index:20;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.on{opacity:1;pointer-events:all;}
+.sheet{background:white;border-radius:26px 26px 0 0;margin-top:auto;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;max-height:88%;}
+.overlay.on .sheet{transform:translateY(0);}
+.sheet-handle{width:36px;height:4px;background:var(--g200);border-radius:2px;margin:14px auto 12px;}
+.sheet-title{font-family:var(--fs);font-size:17px;font-weight:600;color:var(--g900);padding:0 20px 4px;}
+.sheet-sub{font-size:12px;color:var(--g400);padding:0 20px 14px;}
+
+/* ══════════════
+   EMPTY STATE
+══════════════ */
+.guide-card{
+  background:white;border-radius:var(--r);box-shadow:var(--sh);
+  margin:8px 14px 0;
+  display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;
+  border:1.5px dashed var(--g300);transition:all .15s;
+}
+.guide-card:hover{border-color:var(--mint);background:var(--ml);}
+.gc-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.gc-body{flex:1;}
+.gc-title{font-size:14px;font-weight:600;color:var(--g900);margin-bottom:2px;}
+.gc-sub{font-size:12px;color:var(--g400);line-height:1.5;}
+.gc-arr{font-size:18px;color:var(--g300);}
+
+/* ══════════════
+   WEEKLY BABY CARD
+══════════════ */
+.weekly-card{
+  background:white;border-radius:var(--r);box-shadow:var(--sh);
+  margin:10px 14px 0;overflow:hidden;cursor:pointer;
+}
+.wc-header{
+  background:linear-gradient(135deg,var(--rose) 0%,#E07888 100%);
+  padding:12px 14px;display:flex;align-items:center;gap:12px;
+}
+.wc-week-badge{
+  width:48px;height:48px;background:rgba(255,255,255,.22);
+  border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;
+}
+.wc-week-num{font-family:var(--fs);font-size:20px;font-weight:700;color:white;line-height:1;}
+.wc-week-lbl{font-size:8px;color:rgba(255,255,255,.8);margin-top:1px;}
+.wc-info{flex:1;}
+.wc-title{font-size:14px;font-weight:600;color:white;}
+.wc-sub{font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;}
+.wc-arrow{font-size:16px;color:rgba(255,255,255,.7);}
+.wc-items{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.wci{padding:10px 14px;border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);}
+.wci:nth-child(2n){border-right:none;}
+.wci:nth-last-child(-n+2){border-bottom:none;}
+.wci-lbl{font-size:9px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.wci-val{font-size:13px;color:var(--g900);line-height:1.5;}
+
+/* ══════════════
+   EXPENSE - ALIPAY STYLE
+══════════════ */
+.year-month-selector{
+  background:white;border-bottom:1px solid var(--bd);flex-shrink:0;
+}
+.yms-top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px 6px;
+}
+.yms-title{font-family:var(--fs);font-size:17px;font-weight:700;color:var(--g900);}
+.yms-year-btns{display:flex;gap:6px;}
+.yms-yr{padding:4px 10px;border-radius:var(--rp);font-size:12px;font-weight:600;border:1.5px solid var(--bd);background:var(--g100);color:var(--g600);cursor:pointer;font-family:var(--fn);}
+.yms-yr.on{background:var(--ind);color:white;border-color:var(--ind);}
+.month-tabs{display:flex;padding:4px 14px 10px;gap:4px;overflow-x:auto;scrollbar-width:none;}
+.month-tabs::-webkit-scrollbar{display:none;}
+.mtab{padding:5px 10px;border-radius:var(--rp);font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);white-space:nowrap;flex-shrink:0;}
+.mtab.on{background:var(--ind);color:white;}
+.mtab:disabled{opacity:.3;cursor:not-allowed;}
+
+/* Monthly bar chart */
+.monthly-bars{padding:12px 14px 6px;}
+.mb-title{font-size:11px;font-weight:600;color:var(--g900);margin-bottom:10px;}
+.bars-svg-wrap{width:100%;overflow:hidden;}
+
+/* Category detail sheet content */
+.sheet-ms{overflow-y:auto;max-height:55vh;}
+.sheet-ms::-webkit-scrollbar{width:0;}
+.det-item{display:flex;align-items:center;padding:11px 20px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;}
+.det-item:last-child{border-bottom:none;}
+.det-item:hover{background:var(--g50);}
+.det-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-right:11px;}
+.det-b{flex:1;min-width:0;}
+.det-name{font-size:13px;font-weight:500;color:var(--g900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.det-meta{font-size:11px;color:var(--g400);margin-top:1px;}
+.det-amt{font-size:14px;font-weight:700;color:var(--g900);flex-shrink:0;}
+
+/* ══════════════
+   MULTI-USER
+══════════════ */
+.user-chip{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);
+  border-radius:var(--rp);padding:5px 10px;cursor:pointer;
+  position:relative;z-index:1;
+}
+.uc-av{width:22px;height:22px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;font-size:12px;}
+.uc-name{font-size:12px;color:white;font-weight:500;}
+.uc-arr{font-size:10px;color:rgba(255,255,255,.7);}
+
+.member-item{display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;}
+.member-item:last-child{border-bottom:none;}
+.member-item:hover{background:var(--g50);}
+.mi-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-right:12px;border:2px solid transparent;}
+.mi-av.active{border-color:var(--mint);}
+.mi-body{flex:1;}
+.mi-name{font-size:14px;font-weight:600;color:var(--g900);}
+.mi-role{font-size:11px;color:var(--g400);margin-top:1px;}
+.mi-check{width:22px;height:22px;border-radius:50%;background:var(--mint);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;flex-shrink:0;}
+.mi-log{font-size:11px;color:var(--g300);}
+
+/* ══════════════
+   GROWTH UPDATE
+══════════════ */
+.photo-upload{
+  width:100%;height:160px;background:var(--g100);border:2px dashed var(--g300);
+  border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;
+  margin-bottom:14px;position:relative;overflow:hidden;
+}
+.photo-upload:hover{border-color:var(--mint);background:var(--ml);}
+.photo-upload-ic{font-size:36px;margin-bottom:8px;opacity:.5;}
+.photo-upload-lbl{font-size:13px;color:var(--g400);}
+.photo-upload-sub{font-size:11px;color:var(--g300);margin-top:3px;}
+.photo-preview{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;border-radius:calc(var(--r) - 2px);}
+.photo-change{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.5);color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:var(--rp);border:none;cursor:pointer;}
+.growth-input-row{display:flex;gap:10px;margin-bottom:14px;}
+.growth-field{flex:1;text-align:center;}
+.gf-lbl{font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+.gf-wrap{background:var(--g100);border:1.5px solid var(--bd);border-radius:var(--rs);padding:10px 6px;text-align:center;cursor:pointer;transition:border-color .15s;}
+.gf-wrap:focus-within{border-color:var(--mint);}
+.gf-val{font-family:var(--fs);font-size:24px;font-weight:700;color:var(--g900);line-height:1;}
+.gf-unit{font-size:11px;color:var(--g400);margin-top:2px;}
+.gf-input{background:none;border:none;outline:none;font-family:var(--fs);font-size:24px;font-weight:700;color:var(--g900);width:100%;text-align:center;}
+/* Weekly detail page */
+.wdetail-section{background:white;border-radius:var(--r);box-shadow:var(--sh);margin:10px 14px 0;overflow:hidden;}
+.wds-header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--bd);}
+.wds-ic{font-size:22px;}
+.wds-title{font-size:14px;font-weight:600;color:var(--g900);}
+.wds-body{padding:12px 14px;font-size:13px;color:var(--g600);line-height:1.8;}
+.wds-highlight{background:var(--rl);border-radius:var(--rs);padding:8px 12px;margin-top:8px;font-size:12px;color:var(--rd);line-height:1.6;}
+.wds-list{list-style:none;display:flex;flex-direction:column;gap:6px;margin-top:8px;}
+.wds-list li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--g600);line-height:1.6;}
+.wds-list li::before{content:'•';color:var(--rose);font-weight:700;flex-shrink:0;}
+
+/* ── Auth screens ── */
+.auth-hero{background:linear-gradient(160deg,#1A5848 0%,#4AB89A 55%,#B0E0D0 100%);padding:52px 0 36px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0;}
+.auth-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 60% 30%,rgba(255,255,255,.2),transparent 60%);}
+.auth-hero-icon{font-size:54px;margin-bottom:10px;position:relative;z-index:1;}
+.auth-hero-title{font-family:var(--fs);font-size:26px;font-weight:700;color:white;position:relative;z-index:1;}
+.auth-hero-sub{font-size:13px;color:rgba(255,255,255,.8);margin-top:4px;position:relative;z-index:1;}
+.auth-tabs{display:flex;background:var(--g100);border-radius:var(--rs);padding:3px;gap:3px;margin-bottom:20px;}
+.auth-tab{flex:1;height:36px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--fn);background:transparent;color:var(--g400);transition:all .15s;}
+.auth-tab.on{background:white;color:var(--g900);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:16px 0;}
+.auth-divider-line{flex:1;height:1px;background:var(--g200);}
+.auth-divider-text{font-size:12px;color:var(--g300);}
+.auth-third-btn{width:100%;height:44px;border:1.5px solid var(--bd);border-radius:var(--rs);background:white;font-size:14px;font-weight:500;color:var(--g600);cursor:pointer;font-family:var(--fn);display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;margin-bottom:10px;}
+.auth-third-btn:hover{background:var(--g50);}
+.auth-link{font-size:13px;color:var(--mint);cursor:pointer;background:none;border:none;font-family:var(--fn);font-weight:600;}
+.auth-error{background:var(--redl);border-radius:var(--rs);padding:10px 13px;font-size:13px;color:var(--red);margin-bottom:14px;display:none;}
+.auth-error.show{display:block;}
+.fi-pw{position:relative;}
+.fi-pw .fi{padding-right:44px;width:100%;}
+.pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--g400);padding:4px;}
+.auth-agree{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--g400);line-height:1.6;margin-bottom:16px;}
+.auth-agree input[type=checkbox]{width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:var(--mint);}
+.auth-agree a{color:var(--mint);text-decoration:none;}
+.auth-footer{text-align:center;margin-top:12px;font-size:12px;color:var(--g400);}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ LOGIN / REGISTER ══ -->
+<div class="sc on" id="s-auth">
+  <div class="auth-hero">
+    <div class="auth-hero-icon">🌱</div>
+    <div class="auth-hero-title">宝宝日记</div>
+    <div class="auth-hero-sub">记录每一个珍贵的成长瞬间</div>
+  </div>
+  <div class="ms"><div class="fp" style="padding-top:22px;">
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="tab-login" onclick="switchAuthTab('login')">登录</button>
+      <button class="auth-tab" id="tab-reg" onclick="switchAuthTab('reg')">注册</button>
+    </div>
+
+    <!-- ── LOGIN PANEL ── -->
+    <div id="panel-login">
+      <div class="auth-error" id="login-error">手机号或密码错误，请重新输入</div>
+      <div class="ff"><div class="fl">手机号</div><input class="fi" id="login-phone" type="tel" placeholder="请输入手机号" maxlength="11"></div>
+      <div class="ff"><div class="fl">密码</div>
+        <div class="fi-pw"><input class="fi" id="login-pw" type="password" placeholder="请输入密码"><button class="pw-eye" onclick="togglePw('login-pw',this)">👁</button></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="auth-link" onclick="go('s-forgot')">忘记密码？</button>
+      </div>
+      <button class="btn mint" style="font-size:15px;height:50px;" onclick="doLogin()">登录</button>
+      <div class="auth-divider"><div class="auth-divider-line"></div><div class="auth-divider-text">其他方式</div><div class="auth-divider-line"></div></div>
+      <button class="auth-third-btn" onclick="doWechatLogin()"><span>💬</span>微信登录</button>
+      <div class="auth-footer">登录即代表同意 <a href="#" style="color:var(--mint);">《用户协议》</a> 与 <a href="#" style="color:var(--mint);">《隐私政策》</a></div>
+    </div>
+
+    <!-- ── REGISTER PANEL ── -->
+    <div id="panel-reg" style="display:none;">
+      <div class="auth-error" id="reg-error">请检查填写信息</div>
+      <div class="ff"><div class="fl">手机号</div><input class="fi" id="reg-phone" type="tel" placeholder="请输入手机号" maxlength="11"></div>
+      <div class="ff"><div class="fl">验证码</div>
+        <div style="display:flex;gap:8px;">
+          <input class="fi" id="reg-code" type="number" placeholder="6位验证码" style="flex:1;">
+          <button id="sms-btn" onclick="sendSms()" style="flex-shrink:0;height:44px;padding:0 14px;border-radius:var(--rs);border:1.5px solid var(--mint);background:white;color:var(--mint);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fn);white-space:nowrap;">获取验证码</button>
+        </div>
+      </div>
+      <div class="ff"><div class="fl">设置密码</div>
+        <div class="fi-pw"><input class="fi" id="reg-pw" type="password" placeholder="至少8位，含字母和数字"><button class="pw-eye" onclick="togglePw('reg-pw',this)">👁</button></div>
+      </div>
+      <div class="ff"><div class="fl">确认密码</div>
+        <div class="fi-pw"><input class="fi" id="reg-pw2" type="password" placeholder="再次输入密码"><button class="pw-eye" onclick="togglePw('reg-pw2',this)">👁</button></div>
+      </div>
+      <label class="auth-agree"><input type="checkbox" id="agree-cb"><span>我已阅读并同意 <a href="#">《用户协议》</a> 及 <a href="#">《隐私政策》</a></span></label>
+      <button class="btn mint" style="font-size:15px;height:50px;" onclick="doRegister()">注册并登录</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ══ FORGOT PASSWORD ══ -->
+<div class="sc" id="s-forgot">
+  <div class="auth-hero" style="padding:36px 0 24px;">
+    <div class="auth-hero-icon" style="font-size:40px;">🔐</div>
+    <div class="auth-hero-title" style="font-size:20px;">重置密码</div>
+    <div class="auth-hero-sub">通过手机验证码重置密码</div>
+  </div>
+  <div class="ms"><div class="fp" style="padding-top:22px;">
+    <div class="auth-error" id="forgot-error">验证码错误，请重新获取</div>
+    <div class="ff"><div class="fl">手机号</div><input class="fi" id="forgot-phone" type="tel" placeholder="注册时使用的手机号" maxlength="11"></div>
+    <div class="ff"><div class="fl">验证码</div>
+      <div style="display:flex;gap:8px;">
+        <input class="fi" id="forgot-code" type="number" placeholder="6位验证码" style="flex:1;">
+        <button id="forgot-sms-btn" onclick="sendForgotSms()" style="flex-shrink:0;height:44px;padding:0 14px;border-radius:var(--rs);border:1.5px solid var(--mint);background:white;color:var(--mint);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fn);white-space:nowrap;">获取验证码</button>
+      </div>
+    </div>
+    <div class="ff"><div class="fl">新密码</div>
+      <div class="fi-pw"><input class="fi" id="forgot-pw" type="password" placeholder="至少8位，含字母和数字"><button class="pw-eye" onclick="togglePw('forgot-pw',this)">👁</button></div>
+    </div>
+    <div class="ff"><div class="fl">确认新密码</div>
+      <div class="fi-pw"><input class="fi" id="forgot-pw2" type="password" placeholder="再次输入新密码"><button class="pw-eye" onclick="togglePw('forgot-pw2',this)">👁</button></div>
+    </div>
+    <button class="btn mint" style="font-size:15px;height:50px;margin-top:4px;" onclick="doResetPw()">确认重置</button>
+    <div style="text-align:center;margin-top:12px;">
+      <button class="auth-link" onclick="back()">返回登录</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ══ ONBOARDING ══ -->
+<div class="sc" id="s-ob">
+  <div style="background:linear-gradient(160deg,#1A5848 0%,#4AB89A 55%,#B0E0D0 100%);height:200px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 60% 30%,rgba(255,255,255,.2),transparent 60%);"></div>
+    <div style="text-align:center;position:relative;z-index:1;">
+      <div style="font-size:56px;margin-bottom:10px;">🌱</div>
+      <div style="font-family:var(--fs);font-size:24px;font-weight:700;color:white;">宝宝日记</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:4px;">记录每一个珍贵的成长瞬间</div>
+    </div>
+  </div>
+  <div class="ms"><div class="fp" style="padding-top:20px;">
+    <div style="display:flex;gap:6px;justify-content:center;margin-bottom:20px;">
+      <div style="width:20px;height:8px;border-radius:4px;background:var(--mint);"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--g200);"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--g200);"></div>
+    </div>
+    <div style="font-family:var(--fs);font-size:18px;font-weight:700;color:var(--g900);margin-bottom:4px;">先认识一下你的宝宝 👶</div>
+    <div style="font-size:13px;color:var(--g400);margin-bottom:22px;line-height:1.6;">填写宝宝基本信息，随时可在「我的」中修改。</div>
+    <div class="ff"><div class="fl">宝宝昵称</div><input class="fi" style="font-family:var(--fs);font-size:18px;font-weight:600;" value="小南瓜" placeholder="给宝宝起个昵称"></div>
+    <div class="ff"><div class="fl">出生日期</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>2024年</option></select><select class="fi" style="flex:1;"><option>11月</option></select><select class="fi" style="flex:1;"><option>25日</option></select></div></div>
+    <div class="ff"><div class="fl">宝宝性别</div>
+      <div style="display:flex;gap:10px;">
+        <div onclick="this.parentElement.querySelectorAll('div').forEach(e=>e.classList.remove('on'));this.classList.add('on')" class="on" style="flex:1;padding:14px;border-radius:var(--r);border:2px solid var(--mint);background:var(--ml);cursor:pointer;text-align:center;">
+          <div style="font-size:28px;margin-bottom:5px;">👦</div><div style="font-size:13px;font-weight:600;color:var(--md);">男宝</div>
+        </div>
+        <div onclick="this.parentElement.querySelectorAll('div').forEach(e=>e.classList.remove('on'));this.classList.add('on')" style="flex:1;padding:14px;border-radius:var(--r);border:2px solid var(--bd);background:var(--g100);cursor:pointer;text-align:center;">
+          <div style="font-size:28px;margin-bottom:5px;">👧</div><div style="font-size:13px;font-weight:600;color:var(--g600);">女宝</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn mint" style="font-size:16px;height:52px;margin-top:6px;" onclick="go('s-home-empty')">开始记录 🌱</button>
+    <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--g300);">以上信息随时可修改</div>
+  </div></div>
+</div>
+
+<!-- ══ HOME EMPTY STATE ══ -->
+<div class="sc" id="s-home-empty">
+  <div class="h-mint">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● WiFi 🔋</div></div>
+    <div class="nv tr">
+      <div style="flex:1;">
+        <div style="font-family:var(--fs);font-size:20px;font-weight:700;color:white;">小南瓜</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.8);">今天是第 1 天 · 2024年11月25日出生</div>
+      </div>
+      <div onclick="go('s-switch-user')" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:var(--rp);padding:5px 10px;cursor:pointer;position:relative;z-index:1;">
+        <span style="font-size:16px;">👩</span><span style="font-size:12px;color:white;">妈妈</span><span style="font-size:10px;color:rgba(255,255,255,.7);">▾</span>
+      </div>
+    </div>
+  </div>
+  <div class="ms">
+    <div style="padding:20px 14px 10px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">✨</div>
+      <div style="font-family:var(--fs);font-size:16px;font-weight:600;color:var(--g900);margin-bottom:4px;">欢迎使用宝宝日记！</div>
+      <div style="font-size:13px;color:var(--g400);line-height:1.7;">开始记录小南瓜的每一天<br>点击下方卡片快速开始 👇</div>
+    </div>
+    <!-- Guide cards -->
+    <div class="guide-card" onclick="go('s-record-empty')">
+      <div class="gc-ic" style="background:var(--ll);">📋</div>
+      <div class="gc-body">
+        <div class="gc-title">开始生活记录</div>
+        <div class="gc-sub">记录母乳、配方奶、睡眠、尿布<br>掌握宝宝每日状态</div>
+      </div>
+      <div class="gc-arr">›</div>
+    </div>
+    <div class="guide-card" onclick="go('s-expense')">
+      <div class="gc-ic" style="background:var(--il);">💰</div>
+      <div class="gc-body">
+        <div class="gc-title">记录宝宝花费</div>
+        <div class="gc-sub">奶粉、纸尿裤、衣物、玩具<br>轻松管理每月账单</div>
+      </div>
+      <div class="gc-arr">›</div>
+    </div>
+    <div class="guide-card" onclick="go('s-growth-update')">
+      <div class="gc-ic" style="background:var(--gl);">📏</div>
+      <div class="gc-body">
+        <div class="gc-title">记录成长数据</div>
+        <div class="gc-sub">体重、身高、头围<br>与 WHO 标准对比成长曲线</div>
+      </div>
+      <div class="gc-arr">›</div>
+    </div>
+    <div class="guide-card" onclick="go('s-vaccine')">
+      <div class="gc-ic" style="background:var(--ml);">💉</div>
+      <div class="gc-body">
+        <div class="gc-title">疫苗接种记录</div>
+        <div class="gc-sub">国家计划疫苗 + 自定义自费疫苗<br>接种日前自动提醒</div>
+      </div>
+      <div class="gc-arr">›</div>
+    </div>
+    <div style="height:20px;"></div>
+  </div>
+  <div class="bnav">
+    <button class="bt on" onclick="go('s-home-empty')"><div class="bt-i">🏠</div><div class="bt-l" style="color:var(--mint)">首页</div></button>
+    <button class="bt" onclick="go('s-record-empty')"><div class="bt-i">📋</div><div class="bt-l">记录</div></button>
+    <button class="bt" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l">记账</div></button>
+    <button class="bt" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l">我的</div></button>
+  </div>
+</div>
+
+<!-- ══ HOME WITH DATA ══ -->
+<div class="sc" id="s-home">
+  <div class="h-mint">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● WiFi 🔋</div></div>
+    <div class="nv tr">
+      <div style="flex:1;">
+        <div style="font-family:var(--fs);font-size:20px;font-weight:700;color:white;">小南瓜</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.8);">4个月18天 · 2024年11月25日出生</div>
+      </div>
+      <div onclick="go('s-switch-user')" class="user-chip">
+        <div class="uc-av">👩</div>
+        <span class="uc-name">妈妈</span>
+        <span class="uc-arr">▾</span>
+      </div>
+    </div>
+    <div class="hstats">
+      <div class="hst"><div class="hsv">140天</div><div class="hsl">出生天数</div></div>
+      <div class="hst"><div class="hsv">8次</div><div class="hsl">今日记录</div></div>
+      <div class="hst"><div class="hsv">¥326</div><div class="hsl">本月花费</div></div>
+    </div>
+  </div>
+  <div class="ms">
+    <!-- Quick records row -->
+    <div class="sec">
+      <div class="sechd"><div class="sect">快速记录</div><button class="secm" onclick="go('s-record')">记录全部 ›</button></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+        <div onclick="go('s-add-milk')" style="background:white;border-radius:11px;box-shadow:var(--sh);padding:10px 4px 8px;text-align:center;cursor:pointer;"><div style="font-size:22px;margin-bottom:3px;">🤱</div><div style="font-size:9px;font-weight:600;color:var(--g600);">母乳</div><div style="font-size:8px;color:var(--g400);margin-top:1px;">3h前</div></div>
+        <div onclick="go('s-add-formula')" style="background:white;border-radius:11px;box-shadow:var(--sh);padding:10px 4px 8px;text-align:center;cursor:pointer;"><div style="font-size:22px;margin-bottom:3px;">🍼</div><div style="font-size:9px;font-weight:600;color:var(--g600);">配方奶</div><div style="font-size:8px;color:var(--g400);margin-top:1px;">5h前</div></div>
+        <div onclick="go('s-add-sleep')" style="background:white;border-radius:11px;box-shadow:var(--sh);padding:10px 4px 8px;text-align:center;cursor:pointer;"><div style="font-size:22px;margin-bottom:3px;">💤</div><div style="font-size:9px;font-weight:600;color:var(--g600);">睡眠</div><div style="font-size:8px;color:var(--g400);margin-top:1px;">睡着中</div></div>
+        <div onclick="go('s-add-diaper')" style="background:white;border-radius:11px;box-shadow:var(--sh);padding:10px 4px 8px;text-align:center;cursor:pointer;"><div style="font-size:22px;margin-bottom:3px;">💧</div><div style="font-size:9px;font-weight:600;color:var(--g600);">小便</div><div style="font-size:8px;color:var(--g400);margin-top:1px;">2h前</div></div>
+        <div onclick="go('s-add-diaper')" style="background:white;border-radius:11px;box-shadow:var(--sh);padding:10px 4px 8px;text-align:center;cursor:pointer;"><div style="font-size:22px;margin-bottom:3px;">💩</div><div style="font-size:9px;font-weight:600;color:var(--g600);">大便</div><div style="font-size:8px;color:var(--g400);margin-top:1px;">6h前</div></div>
+      </div>
+    </div>
+
+    <!-- Weekly baby changes card -->
+    <div class="weekly-card" onclick="go('s-weekly-detail')">
+      <div class="wc-header">
+        <div class="wc-week-badge"><div class="wc-week-num">18</div><div class="wc-week-lbl">周</div></div>
+        <div class="wc-info">
+          <div class="wc-title">本周宝宝变化 · 第18周</div>
+          <div class="wc-sub">约4个月 · 宝宝像一个芒果那么大 🥭</div>
+        </div>
+        <div class="wc-arrow">›</div>
+      </div>
+      <div class="wc-items">
+        <div class="wci"><div class="wci-lbl">👶 宝宝发育</div><div class="wci-val">听觉越来越敏锐，会转头寻找声音来源</div></div>
+        <div class="wci"><div class="wci-lbl">💆 妈妈变化</div><div class="wci-val">可能开始感受到轻微的胎动翻滚感</div></div>
+        <div class="wci"><div class="wci-lbl">⚖️ 本周体重</div><div class="wci-val"><strong>7.2 kg</strong> · ↑ +0.15 kg</div></div>
+        <div class="wci"><div class="wci-lbl">🍼 日均喂养</div><div class="wci-val">6次 · 共 580ml / 天</div></div>
+      </div>
+    </div>
+
+    <!-- Growth snapshot -->
+    <div class="sec">
+      <div class="sechd"><div class="sect">成长数据</div><button class="secm" onclick="go('s-growth')">查看曲线 ›</button></div>
+      <div class="card"><div class="growthstats">
+        <div class="gsitem"><div class="gsv">7.2<span class="gsu">kg</span></div><div class="gsl">体重</div><div class="gsc">↑+0.4/月</div></div>
+        <div class="gsitem"><div class="gsv">64<span class="gsu">cm</span></div><div class="gsl">身高</div><div class="gsc">↑+2cm/月</div></div>
+        <div class="gsitem"><div class="gsv">41<span class="gsu">cm</span></div><div class="gsl">头围</div><div class="gsc">↑+1cm/月</div></div>
+      </div></div>
+    </div>
+
+    <!-- Recent expense -->
+    <div class="sec" style="margin-bottom:10px;">
+      <div class="sechd"><div class="sect">近期花费</div><button class="secm" onclick="go('s-expense')">查看全部 ›</button></div>
+      <div class="card">
+        <div class="expitem" onclick="go('s-exp-detail')"><div class="eiic" style="background:var(--sl);">🍼</div><div class="eib"><div class="ein">美素佳儿 3段奶粉</div><div class="eim"><span class="tag" style="background:var(--sl);color:var(--sd);">奶粉</span>4月12日</div></div><div class="eia" style="color:var(--ind);">¥298</div></div>
+        <div class="expitem" onclick="go('s-exp-detail')"><div class="eiic" style="background:var(--al);">🧷</div><div class="eib"><div class="ein">帮宝适 M码 80片</div><div class="eim"><span class="tag" style="background:var(--al);color:var(--ad);">纸尿裤</span>4月10日</div></div><div class="eia" style="color:var(--ind);">¥128</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <button class="bt on" onclick="go('s-home')"><div class="bt-i">🏠</div><div class="bt-l" style="color:var(--mint)">首页</div></button>
+    <button class="bt" onclick="go('s-record')"><div class="bt-i">📋</div><div class="bt-l">记录</div></button>
+    <button class="bt" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l">记账</div></button>
+    <button class="bt" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l">我的</div></button>
+  </div>
+</div>
+
+<!-- ══ WEEKLY DETAIL ══ -->
+<div class="sc" id="s-weekly-detail">
+  <div class="h-rose">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+    <div class="nv tr"><button class="bk" onclick="back()">‹</button><div class="nt">第18周成长指南</div></div>
+    <div style="position:relative;z-index:1;">
+      <div class="hl">4个月18天 · 约18周</div>
+      <div class="hbig">🥭<span style="font-size:22px;"> 一颗芒果大小</span></div>
+      <div class="hsub">体重约 7.2kg · 身长约 64cm</div>
+    </div>
+  </div>
+  <div class="ms">
+    <!-- Week nav -->
+    <div style="background:white;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:8px 14px;flex-shrink:0;">
+      <button style="padding:5px 12px;border-radius:var(--rp);font-size:12px;font-weight:600;border:1.5px solid var(--bd);background:var(--g100);color:var(--g600);cursor:pointer;">‹ 第17周</button>
+      <span style="font-size:13px;font-weight:600;color:var(--g900);">第 18 周</span>
+      <button style="padding:5px 12px;border-radius:var(--rp);font-size:12px;font-weight:600;border:1.5px solid var(--bd);background:var(--g100);color:var(--g600);cursor:pointer;">第19周 ›</button>
+    </div>
+    <div style="padding-top:4px;">
+      <div class="wdetail-section">
+        <div class="wds-header"><div class="wds-ic">👶</div><div class="wds-title">宝宝发育</div></div>
+        <div class="wds-body">
+          宝宝听觉系统已基本发育完成，能够清晰分辨妈妈的声音并转头寻找。视觉发育也在加速，能追踪移动的物体，喜欢看鲜艳的颜色。
+          <div class="wds-highlight">💡 这周是建立亲子联系的好时机——多和宝宝说话、唱歌，他（她）都能感受到！</div>
+        </div>
+      </div>
+      <div class="wdetail-section">
+        <div class="wds-header"><div class="wds-ic">⚖️</div><div class="wds-title">本周体重记录</div></div>
+        <div class="wds-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+            <div style="text-align:center;"><div style="font-family:var(--fs);font-size:28px;font-weight:700;color:var(--g900);">7.2<span style="font-size:14px;color:var(--g400);">kg</span></div><div style="font-size:10px;color:var(--g400);">本周</div></div>
+            <div style="flex:1;height:4px;background:var(--g200);border-radius:2px;overflow:hidden;"><div style="height:100%;width:72%;background:var(--grn);border-radius:2px;"></div></div>
+            <div style="text-align:center;font-size:11px;color:var(--g400);">WHO均值<br>6.8kg</div>
+          </div>
+          <button class="btn grn" style="height:40px;font-size:13px;" onclick="go('s-growth-update')">+ 更新今日数据</button>
+        </div>
+      </div>
+      <div class="wdetail-section">
+        <div class="wds-header"><div class="wds-ic">🍼</div><div class="wds-title">本周喂养汇总</div></div>
+        <div class="wds-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:var(--rl);border-radius:var(--rs);padding:10px;text-align:center;"><div style="font-family:var(--fs);font-size:20px;font-weight:700;color:var(--rd);">35次</div><div style="font-size:10px;color:var(--rd);margin-top:2px;">母乳</div></div>
+            <div style="background:var(--sl);border-radius:var(--rs);padding:10px;text-align:center;"><div style="font-family:var(--fs);font-size:20px;font-weight:700;color:var(--sd);">840ml</div><div style="font-size:10px;color:var(--sd);margin-top:2px;">配方奶</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="wdetail-section">
+        <div class="wds-header"><div class="wds-ic">📖</div><div class="wds-title">本周育儿指南</div></div>
+        <div class="wds-body">
+          <ul class="wds-list">
+            <li>每天给宝宝做5-10分钟的抚触按摩，促进神经系统发育</li>
+            <li>可以开始使用摇铃、牙胶等玩具，训练抓握能力</li>
+            <li>保持规律的睡眠节律，建立固定的睡前仪式</li>
+            <li>每天保证15-20分钟的趴卧练习（tummy time）</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div style="height:14px;"></div>
+  </div>
+</div>
+
+<!-- ══ RECORD EMPTY ══ -->
+<div class="sc" id="s-record-empty">
+  <div class="h-lav">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+    <div class="nv tr"><div class="nt">记录</div></div>
+    <div class="hstats" style="margin-top:0;">
+      <div class="hst"><div class="hsv">0次</div><div class="hsl">今日哺喂</div></div>
+      <div class="hst"><div class="hsv">0h</div><div class="hsl">累计睡眠</div></div>
+      <div class="hst"><div class="hsv">0次</div><div class="hsl">换尿布次</div></div>
+      <div class="hst"><div class="hsv">0ml</div><div class="hsl">配方奶</div></div>
+    </div>
+  </div>
+  <div style="background:white;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:8px 14px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:7px;">
+      <button style="width:26px;height:26px;border-radius:50%;background:var(--g100);border:none;cursor:pointer;font-size:14px;color:var(--g500);display:flex;align-items:center;justify-content:center;">‹</button>
+      <span style="font-size:13px;font-weight:600;color:var(--g900);">今天（11月25日）</span>
+      <button style="width:26px;height:26px;border-radius:50%;background:var(--g100);border:none;cursor:pointer;font-size:14px;color:var(--g500);display:flex;align-items:center;justify-content:center;opacity:.3;" disabled>›</button>
+    </div>
+    <button style="font-size:11px;font-weight:600;color:var(--mint);background:var(--ml);border:none;border-radius:var(--rp);padding:4px 9px;cursor:pointer;">今天</button>
+  </div>
+  <div class="ms" style="padding-bottom:80px;">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 32px;text-align:center;">
+      <div style="font-size:56px;margin-bottom:14px;opacity:.45;">📋</div>
+      <div style="font-family:var(--fs);font-size:16px;font-weight:600;color:var(--g600);margin-bottom:6px;">今天还没有记录</div>
+      <div style="font-size:13px;color:var(--g300);line-height:1.7;">点击右下角 + 开始记录<br>母乳、配方奶、睡眠或尿布</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 32px;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--g400);">
+        <div style="flex:1;height:1px;background:var(--g200);"></div>快速开始<div style="flex:1;height:1px;background:var(--g200);"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;">
+        <div onclick="go('s-add-milk')" style="background:var(--rl);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;border:1.5px solid var(--rose-mid,#E8A0B0);">
+          <div style="font-size:28px;margin-bottom:5px;">🤱</div><div style="font-size:13px;font-weight:600;color:var(--rd);">记录母乳</div>
+        </div>
+        <div onclick="go('s-add-formula')" style="background:var(--sl);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;border:1.5px solid #A0C8E8;">
+          <div style="font-size:28px;margin-bottom:5px;">🍼</div><div style="font-size:13px;font-weight:600;color:var(--sd);">记录配方奶</div>
+        </div>
+        <div onclick="go('s-add-sleep')" style="background:var(--il);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;border:1.5px solid #A0A8D0;">
+          <div style="font-size:28px;margin-bottom:5px;">💤</div><div style="font-size:13px;font-weight:600;color:var(--id);">记录睡眠</div>
+        </div>
+        <div onclick="go('s-add-diaper')" style="background:var(--al);border-radius:var(--r);padding:14px 10px;text-align:center;cursor:pointer;border:1.5px solid #D0A060;">
+          <div style="font-size:28px;margin-bottom:5px;">🧷</div><div style="font-size:13px;font-weight:600;color:var(--ad);">记录尿布</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fab mint" onclick="openOverlay('ov-record')">＋</button>
+  <div class="bnav">
+    <button class="bt" onclick="go('s-home-empty')"><div class="bt-i">🏠</div><div class="bt-l">首页</div></button>
+    <button class="bt on" onclick="go('s-record-empty')"><div class="bt-i">📋</div><div class="bt-l" style="color:var(--mint)">记录</div></button>
+    <button class="bt" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l">记账</div></button>
+    <button class="bt" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l">我的</div></button>
+  </div>
+</div>
+
+<!-- ══ RECORD WITH DATA ══ -->
+<div class="sc" id="s-record">
+  <div class="h-lav">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+    <div class="nv tr"><div class="nt">记录</div></div>
+    <div class="hstats" style="margin-top:0;">
+      <div class="hst"><div class="hsv">5次</div><div class="hsl">今日哺喂</div></div>
+      <div class="hst"><div class="hsv">120ml</div><div class="hsl">配方奶</div></div>
+      <div class="hst"><div class="hsv">9.5h</div><div class="hsl">睡眠</div></div>
+      <div class="hst"><div class="hsv">6次</div><div class="hsl">尿布</div></div>
+    </div>
+  </div>
+  <div style="background:white;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:8px 14px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:7px;">
+      <button style="width:26px;height:26px;border-radius:50%;background:var(--g100);border:none;cursor:pointer;font-size:14px;color:var(--g500);display:flex;align-items:center;justify-content:center;">‹</button>
+      <span style="font-size:13px;font-weight:600;color:var(--g900);">4月13日（今天）</span>
+      <button style="width:26px;height:26px;border-radius:50%;background:var(--g100);border:none;cursor:pointer;font-size:14px;color:var(--g500);display:flex;align-items:center;justify-content:center;opacity:.3;" disabled>›</button>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button style="font-size:11px;font-weight:600;color:var(--mint);background:var(--ml);border:none;border-radius:var(--rp);padding:4px 9px;cursor:pointer;">今天</button>
+      <button onclick="go('s-stats')" style="font-size:11px;font-weight:600;color:var(--lav);background:var(--ll);border:none;border-radius:var(--rp);padding:4px 9px;cursor:pointer;">📊 统计</button>
+    </div>
+  </div>
+  <div class="ms" style="padding-bottom:80px;">
+    <div class="tl">
+      <div class="tlg">今天 · 4月13日</div>
+      <div class="tli"><div class="tlic" style="background:var(--rl);">🤱</div><div class="tlib"><div class="tlit"><div class="tlty">母乳</div><div class="tltime">09:30 <span style="color:var(--mint);font-size:9px;font-weight:700;">妈妈</span></div></div><div class="tldet">左<strong>12分</strong> 右<strong>10分</strong></div><div class="tltags"><span class="tltag" style="background:var(--rl);color:var(--rd);">两侧</span><span class="tltag" style="background:var(--gl);color:var(--gd);">状态好</span></div></div></div>
+      <div class="tli"><div class="tlic" style="background:var(--sl);">💧</div><div class="tlib"><div class="tlit"><div class="tlty">换尿布</div><div class="tltime">09:15 <span style="color:var(--ind);font-size:9px;font-weight:700;">奶奶</span></div></div><div class="tldet"><strong>小便</strong> · 淡黄 · 量中</div></div></div>
+      <div class="tli"><div class="tlic" style="background:var(--il);">💤</div><div class="tlib"><div class="tlit"><div class="tlty">睡眠</div><div class="tltime">07:00–09:00 <span style="color:var(--mint);font-size:9px;font-weight:700;">妈妈</span></div></div><div class="tldet">小睡 <strong>2小时</strong></div></div></div>
+      <div class="tli"><div class="tlic" style="background:var(--al);">💩</div><div class="tlib"><div class="tlit"><div class="tlty">换尿布</div><div class="tltime">06:45 <span style="color:var(--ind);font-size:9px;font-weight:700;">奶奶</span></div></div><div class="tldet"><strong>大便</strong> · 金黄色 · 糊状</div></div></div>
+      <div class="tli"><div class="tlic" style="background:var(--rl);">🤱</div><div class="tlib"><div class="tlit"><div class="tlty">母乳</div><div class="tltime">06:00 <span style="color:var(--mint);font-size:9px;font-weight:700;">妈妈</span></div></div><div class="tldet">左侧 <strong>15分钟</strong></div></div></div>
+    </div>
+    <!-- Stats entry -->
+    <div style="display:flex;align-items:center;gap:10px;padding:0 14px;margin-bottom:10px;">
+      <div style="flex:1;height:1px;background:var(--g200);"></div>
+      <span style="font-size:10px;font-weight:700;color:var(--g300);letter-spacing:.08em;text-transform:uppercase;">数据分析</span>
+      <div style="flex:1;height:1px;background:var(--g200);"></div>
+    </div>
+    <div style="margin:0 14px 10px;background:linear-gradient(135deg,var(--lav),var(--ld));border-radius:var(--r);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 4px 18px rgba(155,126,200,.3);" onclick="go('s-stats')">
+      <div style="width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📊</div>
+      <div style="flex:1;"><div style="font-size:15px;font-weight:600;color:white;margin-bottom:2px;">查看统计报告</div><div style="font-size:11px;color:rgba(255,255,255,.75);">哺喂规律 · 睡眠趋势 · 尿布分析</div></div>
+      <div style="font-size:16px;color:rgba(255,255,255,.7);">›</div>
+    </div>
+  </div>
+  <button class="fab mint" onclick="openOverlay('ov-record')">＋</button>
+  <div class="bnav">
+    <button class="bt" onclick="go('s-home')"><div class="bt-i">🏠</div><div class="bt-l">首页</div></button>
+    <button class="bt on" onclick="go('s-record')"><div class="bt-i">📋</div><div class="bt-l" style="color:var(--mint)">记录</div></button>
+    <button class="bt" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l">记账</div></button>
+    <button class="bt" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l">我的</div></button>
+  </div>
+</div>
+
+<!-- record type sheet -->
+<div class="overlay" id="ov-record" onclick="if(event.target===this)closeOverlay('ov-record')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">新增记录</div>
+    <div class="sheet-sub">今天 · 选择记录类型</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 20px 20px;">
+      <div onclick="closeAndGo('ov-record','s-add-milk')" style="background:var(--rl);border:2px solid var(--rose);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">🤱</div><div style="font-size:12px;font-weight:700;color:var(--rd);">母乳</div><div style="font-size:10px;color:var(--rd);margin-top:2px;opacity:.7;">上次 3h前</div></div>
+      <div onclick="closeAndGo('ov-record','s-add-formula')" style="background:var(--sl);border:2px solid var(--sky);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">🍼</div><div style="font-size:12px;font-weight:700;color:var(--sd);">配方奶</div><div style="font-size:10px;color:var(--sd);margin-top:2px;opacity:.7;">上次 5h前</div></div>
+      <div onclick="closeAndGo('ov-record','s-add-sleep')" style="background:var(--il);border:2px solid var(--ind);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">💤</div><div style="font-size:12px;font-weight:700;color:var(--id);">睡眠</div><div style="font-size:10px;color:var(--id);margin-top:2px;opacity:.7;">睡着中</div></div>
+      <div onclick="closeAndGo('ov-record','s-add-diaper')" style="background:var(--sl);border:2px solid var(--sky);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">💧</div><div style="font-size:12px;font-weight:700;color:var(--sd);">小便</div><div style="font-size:10px;color:var(--sd);margin-top:2px;opacity:.7;">上次 2h前</div></div>
+      <div onclick="closeAndGo('ov-record','s-add-diaper')" style="background:var(--al);border:2px solid var(--amb);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">💩</div><div style="font-size:12px;font-weight:700;color:var(--ad);">大便</div><div style="font-size:10px;color:var(--ad);margin-top:2px;opacity:.7;">上次 6h前</div></div>
+      <div onclick="closeAndGo('ov-record','s-growth-update')" style="background:var(--gl);border:2px solid var(--grn);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:5px;">📏</div><div style="font-size:12px;font-weight:700;color:var(--gd);">成长测量</div><div style="font-size:10px;color:var(--gd);margin-top:2px;opacity:.7;">体重/身高</div></div>
+    </div>
+    <div style="padding:0 20px 24px;"><button class="btn ghost" onclick="closeOverlay('ov-record')">取消</button></div>
+  </div>
+</div>
+
+<!-- add milk/formula/sleep/diaper screens (compact) -->
+<div class="sc" id="s-add-milk"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">✕</button><div class="nt">记录母乳</div></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">时间</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>今天</option></select><select class="fi" style="flex:1;"><option>09:30</option></select></div></div><div class="ff"><div class="fl">哺乳侧</div><div class="seg"><button class="sgb" onclick="sgSel(this)">左侧</button><button class="sgb" onclick="sgSel(this)">右侧</button><button class="sgb on" onclick="sgSel(this)">两侧</button></div></div><div class="ff"><div class="fl">左侧时长（分钟）</div><div class="numrow"><button class="nmb" onclick="adjN('lf',-1)">－</button><div class="nmv" id="lf">12</div><div class="nmu">min</div><button class="nmb" onclick="adjN('lf',1)">＋</button></div></div><div class="ff"><div class="fl">右侧时长（分钟）</div><div class="numrow"><button class="nmb" onclick="adjN('rf',-1)">－</button><div class="nmv" id="rf">8</div><div class="nmu">min</div><button class="nmb" onclick="adjN('rf',1)">＋</button></div></div><div class="ff"><div class="fl">宝宝状态</div><div style="display:flex;gap:7px;flex-wrap:wrap;"><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--gl);border:1.5px solid var(--grn);color:var(--gd);">😊 好</span><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">😐 一般</span><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">😢 哭闹</span></div></div><div class="ff"><div class="fl">备注</div><textarea class="fta" placeholder="添加备注…"></textarea></div></div></div><div class="sbar2"><button class="btn rose" onclick="back()">保存记录</button></div></div>
+
+<div class="sc" id="s-add-formula"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">✕</button><div class="nt">记录配方奶</div></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">时间</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>今天</option></select><select class="fi" style="flex:1;"><option>14:00</option></select></div></div><div class="ff"><div class="fl">喂养量</div><div style="background:var(--g100);border-radius:var(--rs);padding:14px;"><div class="numrow" style="justify-content:center;"><button class="nmb" style="width:46px;height:46px;font-size:22px;" onclick="adjN('ml',-10)">－</button><div style="text-align:center;min-width:80px;"><div style="font-family:var(--fs);font-size:34px;font-weight:700;color:var(--g900);line-height:1;" id="ml">120</div><div style="font-size:12px;color:var(--g400);margin-top:2px;">毫升</div></div><button class="nmb" style="width:46px;height:46px;font-size:22px;" onclick="adjN('ml',10)">＋</button></div><div style="display:flex;gap:6px;margin-top:12px;justify-content:center;"><button onclick="setN('ml',60)" style="padding:5px 10px;border-radius:var(--rp);font-size:11px;font-weight:600;border:1.5px solid var(--bd);background:white;cursor:pointer;">60</button><button onclick="setN('ml',90)" style="padding:5px 10px;border-radius:var(--rp);font-size:11px;font-weight:600;border:1.5px solid var(--bd);background:white;cursor:pointer;">90</button><button onclick="setN('ml',120)" style="padding:5px 10px;border-radius:var(--rp);font-size:11px;font-weight:600;border:1.5px solid var(--sky);background:var(--sl);cursor:pointer;color:var(--sd);">120</button><button onclick="setN('ml',150)" style="padding:5px 10px;border-radius:var(--rp);font-size:11px;font-weight:600;border:1.5px solid var(--bd);background:white;cursor:pointer;">150</button></div></div></div><div class="ff"><div class="fl">实际喝完</div><div class="seg"><button class="sgb on" onclick="sgSel(this)">全部喝完</button><button class="sgb" onclick="sgSel(this)">大部分</button><button class="sgb" onclick="sgSel(this)">一半</button><button class="sgb" onclick="sgSel(this)">没多少</button></div></div><div class="ff"><div class="fl">备注</div><textarea class="fta" placeholder="备注…"></textarea></div></div></div><div class="sbar2"><button class="btn mint" onclick="back()">保存记录</button></div></div>
+
+<div class="sc" id="s-add-sleep"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">✕</button><div class="nt">记录睡眠</div></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">睡眠类型</div><div class="seg"><button class="sgb on" onclick="sgSel(this)">夜间睡眠</button><button class="sgb" onclick="sgSel(this)">白天小睡</button></div></div><div class="ff"><div class="fl">入睡时间</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>昨天</option></select><select class="fi" style="flex:1;"><option>21:00</option></select></div></div><div class="ff"><div class="fl">醒来时间</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>今天</option></select><select class="fi" style="flex:1;"><option>06:30</option></select></div></div><div style="background:var(--il);border-radius:var(--rs);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;"><span style="font-size:13px;font-weight:600;color:var(--ind);">总睡眠时长</span><span style="font-family:var(--fs);font-size:22px;font-weight:700;color:var(--ind);">9h 30m</span></div><div class="ff"><div class="fl">备注</div><textarea class="fta" placeholder="如：睡前哭闹…"></textarea></div></div></div><div class="sbar2"><button class="btn ind" onclick="back()">保存记录</button></div></div>
+
+<div class="sc" id="s-add-diaper"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">✕</button><div class="nt">记录尿布</div></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">时间</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>今天</option></select><select class="fi" style="flex:1;"><option>11:20</option></select></div></div><div class="ff"><div class="fl">类型</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"><div style="background:var(--sl);border:2.5px solid var(--sky);border-radius:var(--rs);padding:14px 6px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:4px;">💧</div><div style="font-size:12px;font-weight:700;color:var(--sd);">小便</div></div><div style="background:var(--g100);border:2px solid transparent;border-radius:var(--rs);padding:14px 6px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:4px;">💩</div><div style="font-size:12px;font-weight:700;color:var(--g600);">大便</div></div><div style="background:var(--g100);border:2px solid transparent;border-radius:var(--rs);padding:14px 6px;text-align:center;cursor:pointer;"><div style="font-size:26px;margin-bottom:4px;">🧷</div><div style="font-size:12px;font-weight:700;color:var(--g600);">大小便</div></div></div></div><div class="ff"><div class="fl">小便颜色</div><div style="display:flex;gap:6px;flex-wrap:wrap;"><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--gl);border:1.5px solid var(--grn);color:var(--gd);">淡黄 ✓</span><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">深黄</span><span style="padding:6px 11px;border-radius:var(--rp);font-size:12px;cursor:pointer;background:var(--redl);border:1.5px solid var(--red);color:var(--red);">⚠️异常</span></div></div><div class="ff"><div class="fl">备注</div><textarea class="fta" placeholder="颜色、性状备注…"></textarea></div></div></div><div class="sbar2"><button class="btn amb" onclick="back()">保存记录</button></div></div>
+
+<!-- stats -->
+<div class="sc" id="s-stats">
+  <div class="h-lav"><div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+  <div class="nv tr"><button class="bk" onclick="back()">‹</button><div class="nt">统计报告</div></div>
+  <div class="hstats" style="margin-top:0;"><div class="hst"><div class="hsv">42</div><div class="hsl">7天哺喂</div></div><div class="hst"><div class="hsv">68h</div><div class="hsl">7天睡眠</div></div><div class="hst"><div class="hsv">44</div><div class="hsl">7天尿布</div></div></div></div>
+  <div style="display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--bd);background:white;flex-shrink:0;"><button class="pbtn" style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);">今天</button><button class="pbtn on" style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--lav);color:white;">7天</button><button class="pbtn" style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);">30天</button><button class="pbtn" style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);">3个月</button></div>
+  <div class="ms" style="padding-top:10px;">
+    <div class="cc"><div class="cchd"><div class="cct">哺喂</div><div style="display:flex;gap:6px;font-size:9px;"><span style="color:var(--rose);font-weight:700;">■母乳</span><span style="color:var(--sky);font-weight:700;">■配方</span></div></div><div style="padding:10px 14px 6px;"><svg viewBox="0 0 320 86" width="100%"><rect x="18" y="24" width="14" height="52" rx="3" fill="#D4607A" opacity=".85"/><rect x="34" y="48" width="14" height="28" rx="3" fill="#5A9ED4" opacity=".85"/><rect x="62" y="12" width="14" height="64" rx="3" fill="#D4607A" opacity=".85"/><rect x="106" y="24" width="14" height="52" rx="3" fill="#D4607A" opacity=".85"/><rect x="122" y="60" width="14" height="16" rx="3" fill="#5A9ED4" opacity=".85"/><rect x="150" y="12" width="14" height="64" rx="3" fill="#D4607A" opacity=".85"/><rect x="194" y="24" width="14" height="52" rx="3" fill="#D4607A" opacity=".85"/><rect x="210" y="48" width="14" height="28" rx="3" fill="#5A9ED4" opacity=".85"/><rect x="238" y="12" width="14" height="64" rx="3" fill="#D4607A" opacity=".85"/><rect x="282" y="24" width="14" height="52" rx="3" fill="#D4607A" opacity=".85"/><rect x="298" y="48" width="14" height="28" rx="3" fill="#5A9ED4" opacity=".85"/><text x="30" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/7</text><text x="74" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/8</text><text x="118" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/9</text><text x="158" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/10</text><text x="202" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/11</text><text x="246" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/12</text><text x="290" y="82" font-size="8" fill="#C8BFB0" text-anchor="middle">4/13</text></svg></div><div class="sumrow"><div class="sumc"><div class="sumcv" style="color:var(--rose);">35次</div><div class="sumcl">母乳</div></div><div class="sumc"><div class="sumcv" style="color:var(--sky);">7次</div><div class="sumcl">配方奶</div></div><div class="sumc"><div class="sumcv">840ml</div><div class="sumcl">总量</div></div></div></div>
+    <div style="height:14px;"></div>
+  </div>
+</div>
+
+<!-- ══ EXPENSE - ALIPAY STYLE ══ -->
+<div class="sc" id="s-expense">
+  <div class="h-ind">
+    <div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+    <div class="nv tr"><div class="nt">宝宝账本</div></div>
+    <div style="position:relative;z-index:1;">
+      <div class="hl">2025年4月 · 月度支出</div>
+      <div class="hbig">¥ 2,846</div>
+      <div class="hsub">28笔 · 较上月 <strong style="color:white;">+¥320</strong></div>
+    </div>
+  </div>
+
+  <!-- Year + Month selector (Alipay style) -->
+  <div class="year-month-selector">
+    <div class="yms-top">
+      <div class="yms-title" id="yms-display">2025年4月</div>
+      <div class="yms-year-btns">
+        <button class="yms-yr" onclick="setYear(2024,this)">2024</button>
+        <button class="yms-yr on" onclick="setYear(2025,this)">2025</button>
+      </div>
+    </div>
+    <div class="month-tabs" id="month-tabs"></div>
+  </div>
+
+  <div class="ms" style="padding-bottom:80px;">
+    <!-- Monthly comparison bar chart -->
+    <div style="background:white;margin:10px 14px 0;border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;">
+      <div style="padding:12px 14px 0;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;font-weight:600;color:var(--g900);">2025年各月支出对比</div>
+        <button onclick="go('s-exp-cat')" style="font-size:11px;font-weight:600;color:var(--mint);border:none;background:none;cursor:pointer;font-family:var(--fn);">分类 ›</button>
+      </div>
+      <div style="padding:8px 14px 0;">
+        <svg viewBox="0 0 340 100" width="100%">
+          <!-- bars for Jan-Apr, May-Dec dim/zero -->
+          <!-- Jan -->
+          <rect x="10" y="70" width="22" height="22" rx="3" fill="#ECEFFE"/>
+          <text x="21" y="99" font-size="8" fill="#C8BFB0" text-anchor="middle">1月</text>
+          <!-- Feb -->
+          <rect x="44" y="58" width="22" height="34" rx="3" fill="#ECEFFE"/>
+          <text x="55" y="99" font-size="8" fill="#C8BFB0" text-anchor="middle">2月</text>
+          <!-- Mar -->
+          <rect x="78" y="50" width="22" height="42" rx="3" fill="#ECEFFE"/>
+          <text x="89" y="99" font-size="8" fill="#C8BFB0" text-anchor="middle">3月</text>
+          <!-- Apr (current, highlighted) -->
+          <rect x="112" y="20" width="22" height="72" rx="3" fill="#3D4F8C"/>
+          <text x="123" y="99" font-size="8" fill="#3D4F8C" text-anchor="middle" font-weight="700">4月</text>
+          <text x="123" y="16" font-size="8" fill="#3D4F8C" text-anchor="middle" font-weight="700">¥2846</text>
+          <!-- May-Dec: empty/zero -->
+          <rect x="146" y="92" width="22" height="0" rx="3" fill="#F2EEE8"/>
+          <text x="157" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">5月</text>
+          <text x="191" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">6月</text>
+          <text x="225" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">7月</text>
+          <text x="259" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">8月</text>
+          <text x="293" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">9月</text>
+          <text x="327" y="99" font-size="8" fill="#E4DDD0" text-anchor="middle">10月</text>
+        </svg>
+      </div>
+      <div style="display:flex;gap:0;border-top:1px solid var(--bd);margin-top:6px;">
+        <div style="flex:1;text-align:center;padding:8px 4px;border-right:1px solid var(--bd);"><div style="font-family:var(--fs);font-size:15px;font-weight:700;color:var(--g900);">¥8,420</div><div style="font-size:9px;color:var(--g400);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;">年度累计</div></div>
+        <div style="flex:1;text-align:center;padding:8px 4px;border-right:1px solid var(--bd);"><div style="font-family:var(--fs);font-size:15px;font-weight:700;color:var(--g900);">¥2,105</div><div style="font-size:9px;color:var(--g400);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;">月均支出</div></div>
+        <div style="flex:1;text-align:center;padding:8px 4px;"><div style="font-family:var(--fs);font-size:15px;font-weight:700;color:var(--ind);">4月</div><div style="font-size:9px;color:var(--g400);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;">最高月份</div></div>
+      </div>
+    </div>
+
+    <!-- Category breakdown (click for detail) -->
+    <div class="sec"><div class="sechd"><div class="sect">分类支出</div><div style="font-size:11px;color:var(--g400);">点击查看明细</div></div>
+      <div class="card">
+        <div class="csrow" onclick="openCatDetail('奶粉/辅食','#5A9ED4',['美素佳儿3段奶粉 ¥298','嘉宝米粉2段 ¥68','雀巢1段奶粉 ¥258','嘉宝果蔬泥 ¥58','美素佳儿3段奶粉 ¥298','菠菜泥辅食 ¥45','水果泥礼盒 ¥56'])"><div class="csic" style="background:var(--sl);">🍼</div><div class="csb"><div class="csn">奶粉/辅食</div><div class="csbw"><div class="csbar" style="width:38%;background:var(--sky);"></div></div></div><div class="csr"><div class="csamt">¥1,081</div><div class="cscnt">8笔·38%</div></div></div>
+        <div class="csrow" onclick="openCatDetail('纸尿裤','#E8A030',['帮宝适超薄干爽M码 ¥128','好奇金装M码 ¥138','帮宝适M码 ¥98','好奇金装M码 ¥138','帮宝适超薄干爽M码 ¥128','花王妙而舒M码 ¥167'])"><div class="csic" style="background:var(--al);">🧷</div><div class="csb"><div class="csn">纸尿裤</div><div class="csbw"><div class="csbar" style="width:28%;background:var(--amb);"></div></div></div><div class="csr"><div class="csamt">¥797</div><div class="cscnt">6笔·28%</div></div></div>
+        <div class="csrow" onclick="openCatDetail('玩具/用品','#5AA870',['费雪摇铃套装 ¥89','曼哈顿球 ¥128','安抚奶嘴3支 ¥68','婴儿游泳圈 ¥138','早教卡片 ¥45','吸盘碗套装 ¥45'])"><div class="csic" style="background:var(--gl);">🧸</div><div class="csb"><div class="csn">玩具/用品</div><div class="csbw"><div class="csbar" style="width:18%;background:var(--grn);"></div></div></div><div class="csr"><div class="csamt">¥513</div><div class="cscnt">7笔·18%</div></div></div>
+        <div class="csrow" onclick="openCatDetail('衣物/床品','#9B7EC8',['巴拉巴拉爬服2件 ¥168','棉柔巾300片 ¥68','婴儿枕头 ¥98','连体哈衣3件 ¥121'])"><div class="csic" style="background:var(--ll);">👗</div><div class="csb"><div class="csn">衣物/床品</div><div class="csbw"><div class="csbar" style="width:16%;background:var(--lav);"></div></div></div><div class="csr"><div class="csamt">¥455</div><div class="cscnt">5笔·16%</div></div></div>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="sec" style="margin-bottom:14px;"><div class="sechd"><div class="sect">本月明细</div></div>
+      <div class="card">
+        <div style="padding:7px 14px 2px;font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;">4月13日</div>
+        <div class="expitem" onclick="go('s-exp-detail')"><div class="eiic" style="background:var(--sl);">🍼</div><div class="eib"><div class="ein">美素佳儿 3段奶粉 900g</div><div class="eim"><span class="tag" style="background:var(--sl);color:var(--sd);">奶粉</span>京东</div></div><div class="eia">¥298</div></div>
+        <div style="padding:7px 14px 2px;font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.06em;">4月10日</div>
+        <div class="expitem" onclick="go('s-exp-detail')"><div class="eiic" style="background:var(--al);">🧷</div><div class="eib"><div class="ein">帮宝适超薄干爽 M码 80片</div><div class="eim"><span class="tag" style="background:var(--al);color:var(--ad);">纸尿裤</span>线下</div></div><div class="eia">¥128</div></div>
+        <div class="expitem" onclick="go('s-exp-detail')"><div class="eiic" style="background:var(--ll);">👗</div><div class="eib"><div class="ein">巴拉巴拉连体爬服 2件装</div><div class="eim"><span class="tag" style="background:var(--ll);color:var(--ld);">衣物</span>天猫</div></div><div class="eia">¥168</div></div>
+      </div>
+    </div>
+  </div>
+  <button class="fab ind" onclick="go('s-add-expense')">＋</button>
+  <div class="bnav">
+    <button class="bt" onclick="go('s-home')"><div class="bt-i">🏠</div><div class="bt-l">首页</div></button>
+    <button class="bt" onclick="go('s-record')"><div class="bt-i">📋</div><div class="bt-l">记录</div></button>
+    <button class="bt on" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l" style="color:var(--mint)">记账</div></button>
+    <button class="bt" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l">我的</div></button>
+  </div>
+</div>
+
+<!-- Category detail bottom sheet -->
+<div class="overlay" id="ov-cat" onclick="if(event.target===this)closeOverlay('ov-cat')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 4px;">
+      <div><div class="sheet-title" id="cat-sheet-title" style="padding:0;"></div>
+        <div style="font-size:12px;color:var(--g400);margin-top:2px;" id="cat-sheet-sub"></div>
+      </div>
+      <div style="font-family:var(--fs);font-size:22px;font-weight:700;color:var(--ind);" id="cat-sheet-amt"></div>
+    </div>
+    <div style="height:1px;background:var(--bd);margin:10px 0 0;"></div>
+    <div class="sheet-ms" id="cat-detail-list"></div>
+    <div style="padding:12px 20px 24px;"><button class="btn ghost" onclick="closeOverlay('ov-cat')">关闭</button></div>
+  </div>
+</div>
+
+<!-- add expense -->
+<div class="sc" id="s-add-expense"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">✕</button><div class="nt">添加记账</div></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">金额</div><input class="fi big" value="¥ 0.00" placeholder="¥ 0.00"></div><div class="ff"><div class="fl">分类</div><div class="catgrid"><div class="copt on" onclick="selCat(this)"><div class="copt-i">🍼</div><div class="copt-l">奶粉</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">🧷</div><div class="copt-l">纸尿裤</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">👗</div><div class="copt-l">衣物</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">🧸</div><div class="copt-l">玩具</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">💊</div><div class="copt-l">医疗</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">🛁</div><div class="copt-l">洗护</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">🍱</div><div class="copt-l">辅食</div></div><div class="copt" onclick="selCat(this)"><div class="copt-i">📦</div><div class="copt-l">其他</div></div></div></div><div class="ff"><div class="fl">商品名称</div><input class="fi" placeholder="输入商品名称"></div><div class="ff"><div class="fl">购买日期</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>2025年</option></select><select class="fi" style="flex:1;" id="exp-month-sel"></select><select class="fi" style="flex:1;"><option>13日</option></select></div></div><div class="ff"><div class="fl">购买渠道（选填）</div><input class="fi" placeholder="如：京东、天猫、线下超市"></div></div></div><div class="sbar2"><button class="btn ind" onclick="back()">保存记账</button></div></div>
+
+<!-- exp detail -->
+<div class="sc" id="s-exp-detail"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">‹</button><div class="nt">账单详情</div><button class="na">编辑</button></div><div class="ms"><div style="height:120px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:56px;flex-shrink:0;border-bottom:1px solid var(--bd);">🧷</div><div style="padding:14px 16px;"><div style="font-family:var(--fs);font-size:40px;font-weight:700;color:var(--ind);margin-bottom:2px;">¥ 128.00</div><div style="font-size:16px;font-weight:500;color:var(--g900);margin-bottom:12px;">帮宝适超薄干爽 M码 80片</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div style="background:var(--g100);border-radius:var(--rs);padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">分类</div><div style="font-size:14px;font-weight:600;color:var(--g900);">🧷 纸尿裤</div></div><div style="background:var(--g100);border-radius:var(--rs);padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">购买日期</div><div style="font-size:14px;font-weight:600;color:var(--g900);">2025年4月10日</div></div><div style="background:var(--g100);border-radius:var(--rs);padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">购买渠道</div><div style="font-size:14px;font-weight:600;color:var(--g900);">线下超市</div></div><div style="background:var(--g100);border-radius:var(--rs);padding:10px 12px;"><div style="font-size:9px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">记录人</div><div style="font-size:14px;font-weight:600;color:var(--g900);">妈妈</div></div></div><button style="width:100%;margin-top:14px;height:44px;background:var(--redl);border:none;border-radius:var(--rp);font-size:14px;font-weight:600;color:var(--red);cursor:pointer;font-family:var(--fn);">🗑 删除这笔记录</button></div></div></div>
+
+<!-- ══ SWITCH USER ══ -->
+<div class="overlay" id="ov-switch" onclick="if(event.target===this)closeOverlay('ov-switch')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">切换记录人</div>
+    <div class="sheet-sub">所有成员看到的记录完全相同，只是标注记录人不同</div>
+    <div id="member-list">
+      <div class="member-item" onclick="selectMember(this,'妈妈','👩')"><div class="mi-av active" style="background:var(--rl);">👩</div><div class="mi-body"><div class="mi-name">妈妈</div><div class="mi-role">主要记录人 · 今天记录 6条</div></div><div class="mi-check">✓</div></div>
+      <div class="member-item" onclick="selectMember(this,'爸爸','👨')"><div class="mi-av" style="background:var(--sl);">👨</div><div class="mi-body"><div class="mi-name">爸爸</div><div class="mi-role">昨天记录 2条</div></div><div class="mi-log">09:15</div></div>
+      <div class="member-item" onclick="selectMember(this,'奶奶','👵')"><div class="mi-av" style="background:var(--al);">👵</div><div class="mi-body"><div class="mi-name">奶奶</div><div class="mi-role">今天记录 2条</div></div><div class="mi-log">06:45</div></div>
+    </div>
+    <div style="padding:14px 20px;">
+      <button onclick="go('s-add-member')" style="width:100%;height:44px;background:var(--g100);border:1.5px dashed var(--g300);border-radius:var(--rp);font-size:14px;font-weight:500;color:var(--g500);cursor:pointer;font-family:var(--fn);">+ 添加家庭成员</button>
+    </div>
+    <div style="padding:0 20px 24px;"><button class="btn ghost" onclick="closeOverlay('ov-switch')">取消</button></div>
+  </div>
+</div>
+
+<!-- ══ SWITCH USER (from home page button) ══ -->
+<div class="sc" id="s-switch-user">
+  <div class="h-warm"><div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+  <div class="nv tr"><button class="bk" onclick="back()">‹</button><div class="nt">家庭成员</div></div>
+  <div style="position:relative;z-index:1;"><div class="hl">小南瓜的家庭</div><div class="hbig">3<span>位成员</span></div><div class="hsub">同步记录 · 共同守护宝宝成长</div></div></div>
+  <div class="ms">
+    <div style="padding:14px 14px 6px;font-size:12px;color:var(--g400);line-height:1.7;background:var(--il);border-radius:var(--r);margin:10px 14px 0;">
+      💡 <strong style="color:var(--ind);">多人同步记录：</strong>家庭成员用各自设备扫码加入或邀请链接，所有人看到同一份记录，每条记录会标注是谁添加的。
+    </div>
+    <div class="sec"><div class="sechd"><div class="sect">当前成员</div></div>
+      <div class="card">
+        <div class="member-item"><div class="mi-av active" style="background:var(--rl);border-color:var(--mint);">👩</div><div class="mi-body"><div class="mi-name">妈妈</div><div class="mi-role">主要记录人 · 今天 6条记录</div></div><div style="font-size:11px;font-weight:600;color:var(--mint);background:var(--ml);padding:3px 8px;border-radius:var(--rp);">当前</div></div>
+        <div class="member-item"><div class="mi-av" style="background:var(--sl);">👨</div><div class="mi-body"><div class="mi-name">爸爸</div><div class="mi-role">昨天 2条记录 · 最近在线 09:15</div></div><div class="arr">›</div></div>
+        <div class="member-item"><div class="mi-av" style="background:var(--al);">👵</div><div class="mi-body"><div class="mi-name">奶奶</div><div class="mi-role">今天 2条记录 · 最近在线 06:45</div></div><div class="arr">›</div></div>
+      </div>
+    </div>
+    <div class="sec" style="margin-bottom:14px;">
+      <div class="card">
+        <button class="row" onclick="go('s-add-member')"><div class="ric" style="background:var(--ml);">➕</div><div class="rb"><div class="rt">添加家庭成员</div><div class="rs">邀请爷爷、外公外婆等加入</div></div><div class="rr"><div class="arr">›</div></div></button>
+        <button class="row"><div class="ric" style="background:var(--il);">🔗</div><div class="rb"><div class="rt">分享家庭邀请码</div><div class="rs">扫码或链接即可加入</div></div><div class="rr"><div class="arr">›</div></div></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add member -->
+<div class="sc" id="s-add-member">
+  <div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div>
+  <div class="nv wh"><button class="bk" onclick="back()">‹</button><div class="nt">添加家庭成员</div></div>
+  <div class="ms"><div class="fp">
+    <div style="text-align:center;padding:10px 0 20px;">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--g100);border:2px dashed var(--g300);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;">🧑</div>
+      <div style="font-size:12px;color:var(--g400);">点击设置头像</div>
+    </div>
+    <div class="ff"><div class="fl">称呼</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--ml);border:1.5px solid var(--mint);color:var(--md);">爷爷</span>
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">奶奶</span>
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">外公</span>
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">外婆</span>
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">保姆</span>
+        <span style="padding:7px 14px;border-radius:var(--rp);font-size:13px;cursor:pointer;background:var(--g100);border:1.5px solid var(--bd);color:var(--g500);">自定义</span>
+      </div>
+    </div>
+    <div class="ff"><div class="fl">姓名（选填）</div><input class="fi" placeholder="如：王奶奶"></div>
+    <div style="background:var(--il);border-radius:var(--r);padding:14px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--ind);margin-bottom:6px;">邀请方式</div>
+      <div style="display:flex;gap:8px;">
+        <button style="flex:1;height:44px;background:white;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:13px;font-weight:500;color:var(--g600);cursor:pointer;font-family:var(--fn);">📱 发送链接</button>
+        <button style="flex:1;height:44px;background:white;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:13px;font-weight:500;color:var(--g600);cursor:pointer;font-family:var(--fn);">📷 二维码</button>
+      </div>
+    </div>
+    <button class="btn mint" onclick="back()">生成邀请</button>
+  </div></div>
+</div>
+
+<!-- ══ GROWTH UPDATE ══ -->
+<div class="sc" id="s-growth-update">
+  <div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div>
+  <div class="nv wh"><button class="bk" onclick="back()">‹</button><div class="nt">更新成长数据</div></div>
+  <div class="ms"><div class="fp" style="padding-top:16px;">
+    <!-- Photo upload -->
+    <div class="ff"><div class="fl">宝宝照片（选填）</div>
+      <div class="photo-upload" id="photo-upload" onclick="selectPhoto()">
+        <div class="photo-upload-ic" id="photo-ic">📷</div>
+        <div class="photo-upload-lbl" id="photo-lbl">点击上传今日照片</div>
+        <div class="photo-upload-sub" id="photo-sub">记录宝宝成长的每个瞬间</div>
+      </div>
+    </div>
+    <!-- Date -->
+    <div class="ff"><div class="fl">测量日期</div>
+      <div style="display:flex;gap:8px;">
+        <select class="fi" style="flex:1;"><option>2025年</option></select>
+        <select class="fi" style="flex:2;"><option>4月13日（今天）</option><option>4月12日</option><option>4月11日</option></select>
+      </div>
+    </div>
+    <!-- Three metrics -->
+    <div class="ff"><div class="fl">测量数据</div>
+      <div class="growth-input-row">
+        <div class="growth-field">
+          <div class="gf-lbl">体重</div>
+          <div class="gf-wrap" onclick="this.querySelector('input').focus()">
+            <input class="gf-input" id="g-weight" value="7.2" type="number" step="0.1">
+            <div class="gf-unit">kg</div>
+          </div>
+        </div>
+        <div class="growth-field">
+          <div class="gf-lbl">身高</div>
+          <div class="gf-wrap" onclick="this.querySelector('input').focus()">
+            <input class="gf-input" id="g-height" value="64" type="number" step="0.5">
+            <div class="gf-unit">cm</div>
+          </div>
+        </div>
+        <div class="growth-field">
+          <div class="gf-lbl">头围</div>
+          <div class="gf-wrap" onclick="this.querySelector('input').focus()">
+            <input class="gf-input" id="g-head" value="41" type="number" step="0.5">
+            <div class="gf-unit">cm</div>
+          </div>
+        </div>
+      </div>
+      <!-- WHO comparison -->
+      <div style="background:var(--gl);border-radius:var(--rs);padding:10px 12px;margin-top:4px;">
+        <div style="font-size:11px;font-weight:600;color:var(--gd);margin-bottom:6px;">WHO 4月龄参考范围</div>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--gd);">
+          <span>体重：5.1–8.0kg ✅</span>
+          <span>身高：59–68cm ✅</span>
+          <span>头围：38–44cm ✅</span>
+        </div>
+      </div>
+    </div>
+    <!-- Notes -->
+    <div class="ff"><div class="fl">备注（选填）</div><textarea class="fta" placeholder="如：宝宝今天特别配合，笑了很多次…"></textarea></div>
+    <button class="btn grn" onclick="back()">保存成长记录</button>
+  </div></div>
+</div>
+
+<!-- ══ GROWTH CURVE ══ -->
+<div class="sc" id="s-growth">
+  <div class="h-grn"><div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+  <div class="nv tr"><button class="bk" onclick="back()">‹</button><div class="nt">成长曲线</div><button onclick="go('s-growth-update')" style="background:rgba(255,255,255,.22);color:white;border:none;border-radius:var(--rp);padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--fn);">+ 更新</button></div>
+  <div style="position:relative;z-index:1;"><div class="hstats"><div class="hst"><div class="hsv">7.2<span style="font-size:11px;opacity:.8;">kg</span></div><div class="hsl">体重</div></div><div class="hst"><div class="hsv">64<span style="font-size:11px;opacity:.8;">cm</span></div><div class="hsl">身高</div></div><div class="hst"><div class="hsv">41<span style="font-size:11px;opacity:.8;">cm</span></div><div class="hsl">头围</div></div></div></div></div>
+  <div style="display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--bd);background:white;flex-shrink:0;"><button style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);">身高</button><button style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--grn);color:white;">体重</button><button style="flex:1;height:30px;border-radius:var(--rp);font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:var(--fn);background:var(--g100);color:var(--g600);">头围</button></div>
+  <div class="ms" style="padding-top:10px;">
+    <div class="cc"><div class="cchd"><div class="cct">体重增长曲线</div><div class="ccs">vs WHO参考标准</div></div>
+      <div style="padding:10px 14px 6px;">
+        <svg viewBox="0 0 320 120" width="100%">
+          <path d="M20 100 Q80 95 140 80 Q200 65 280 50" fill="none" stroke="#C8BFB0" stroke-width="1" stroke-dasharray="3 2"/>
+          <rect x="20" y="32" width="260" height="60" fill="rgba(234,247,238,.5)" rx="3"/>
+          <text x="282" y="30" font-size="8" fill="#9C9080">75%</text>
+          <text x="282" y="96" font-size="8" fill="#9C9080">25%</text>
+          <polyline points="20,108 60,104 100,98 140,92 180,85 220,79 260,74 290,70" fill="none" stroke="#5AA870" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="20" cy="108" r="3" fill="white" stroke="#5AA870" stroke-width="2"/>
+          <circle cx="100" cy="98" r="3" fill="white" stroke="#5AA870" stroke-width="2"/>
+          <circle cx="180" cy="85" r="3" fill="white" stroke="#5AA870" stroke-width="2"/>
+          <circle cx="290" cy="70" r="5" fill="#5AA870" stroke="white" stroke-width="2"/>
+          <text x="20" y="118" font-size="8" fill="#C8BFB0" text-anchor="middle">出生</text>
+          <text x="100" y="118" font-size="8" fill="#C8BFB0" text-anchor="middle">1月</text>
+          <text x="180" y="118" font-size="8" fill="#C8BFB0" text-anchor="middle">3月</text>
+          <text x="290" y="118" font-size="8" fill="#5AA870" text-anchor="middle" font-weight="700">现在</text>
+        </svg>
+      </div>
+    </div>
+    <div class="sec"><div class="sechd"><div class="sect">历史记录</div><button onclick="go('s-growth-update')" style="font-size:12px;color:var(--mint);border:none;background:none;cursor:pointer;font-family:var(--fn);">+ 更新</button></div>
+      <div class="card">
+        <div class="growthrow"><div class="grd">4月13日</div><div class="grw">4m18d</div><div class="grbw"><div class="grb" style="width:72%;background:var(--grn);opacity:.8;"></div></div><div class="grv">7.2kg</div></div>
+        <div class="growthrow"><div class="grd">3月15日</div><div class="grw">3m20d</div><div class="grbw"><div class="grb" style="width:68%;background:var(--grn);opacity:.7;"></div></div><div class="grv">6.8kg</div></div>
+        <div class="growthrow"><div class="grd">2月10日</div><div class="grw">2m15d</div><div class="grbw"><div class="grb" style="width:60%;background:var(--grn);opacity:.6;"></div></div><div class="grv">5.8kg</div></div>
+        <div class="growthrow"><div class="grd">出生</div><div class="grw">0m</div><div class="grbw"><div class="grb" style="width:34%;background:var(--grn);opacity:.4;"></div></div><div class="grv">3.4kg</div></div>
+      </div>
+    </div>
+    <div style="height:14px;"></div>
+  </div>
+</div>
+
+<!-- ══ VACCINE ══ -->
+<div class="sc" id="s-vaccine">
+  <div class="h-mint"><div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● 🔋</div></div>
+  <div class="nv tr"><button class="bk" onclick="back()">‹</button><div class="nt">疫苗记录</div></div>
+  <div style="position:relative;z-index:1;"><div class="hl">接种进度</div><div class="hbig">8<span> / 24项</span></div><div class="hsub">下次接种 3天后</div></div></div>
+  <div style="background:white;padding:10px 14px;border-bottom:1px solid var(--bd);flex-shrink:0;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;"><span style="font-size:12px;font-weight:600;color:var(--g900);">接种进度</span><span style="font-size:12px;font-weight:700;color:var(--mint);">33%</span></div><div style="height:8px;background:var(--g200);border-radius:4px;overflow:hidden;"><div style="height:100%;width:33%;background:var(--mint);border-radius:4px;"></div></div></div>
+  <div class="ms" style="padding-bottom:80px;">
+    <div class="sec"><div class="sechd"><div class="sect">0–6个月计划</div></div>
+      <div class="card">
+        <div class="vacitem done" onclick="this.classList.toggle('done');this.querySelector('.vacck').textContent=this.classList.contains('done')?'✓':''"><div class="vacck">✓</div><div class="rb"><div class="rt vacname">乙肝疫苗 第1针</div><div class="rs">出生后24h</div></div><div class="vacdate">11月25日</div></div>
+        <div class="vacitem done" onclick="this.classList.toggle('done');this.querySelector('.vacck').textContent=this.classList.contains('done')?'✓':''"><div class="vacck">✓</div><div class="rb"><div class="rt vacname">卡介苗</div><div class="rs">出生后</div></div><div class="vacdate">11月26日</div></div>
+        <div class="vacitem" style="background:var(--al);" onclick="this.classList.toggle('done');this.querySelector('.vacck').textContent=this.classList.contains('done')?'✓':''"><div class="vacck" style="border-color:var(--amb);"></div><div class="rb"><div class="rt" style="color:var(--ad);">脊灰减毒活疫苗</div><div class="rs" style="color:var(--ad);">⏰ 4月16日 · 3天后</div></div><div class="vacdate" style="color:var(--ad);">待接种</div></div>
+        <div class="vacitem" onclick="this.classList.toggle('done');this.querySelector('.vacck').textContent=this.classList.contains('done')?'✓':''"><div class="vacck"></div><div class="rb"><div class="rt vacname">百白破 第2针</div><div class="rs">4月龄</div></div><div class="vacdate">—</div></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sechd"><div class="sect">自定义疫苗</div></div>
+      <div class="card" id="custom-vac-list"><div style="padding:14px;text-align:center;color:var(--g300);font-size:13px;">暂无自定义疫苗<br><span style="font-size:11px;">点击 + 添加自费疫苗</span></div></div>
+    </div>
+    <div style="height:14px;"></div>
+  </div>
+  <button class="fab mint" onclick="openOverlay('ov-vaccine')">＋</button>
+</div>
+
+<div class="overlay" id="ov-vaccine" onclick="if(event.target===this)closeOverlay('ov-vaccine')">
+  <div class="sheet"><div class="sheet-handle"></div><div class="sheet-title">添加疫苗记录</div><div class="sheet-sub">可添加自费疫苗、进口疫苗等</div>
+    <div style="padding:0 20px 8px;">
+      <div class="ff"><div class="fl">疫苗名称</div><input class="fi" id="vac-name" placeholder="如：13价肺炎球菌疫苗"></div>
+      <div class="ff"><div class="fl">接种状态</div><div class="seg"><button class="sgb on" onclick="sgSel(this)">已接种</button><button class="sgb" onclick="sgSel(this)">计划接种</button></div></div>
+      <div class="ff"><div class="fl">接种日期</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>2025年</option></select><select class="fi" style="flex:1;"><option>4月</option></select><select class="fi" style="flex:1;"><option>13日</option></select></div></div>
+      <div class="ff"><div class="fl">接种医院（选填）</div><input class="fi" placeholder="接种地点"></div>
+      <button class="btn mint" onclick="addCustomVaccine()">保存疫苗记录</button>
+      <button class="btn ghost" style="margin-top:8px;" onclick="closeOverlay('ov-vaccine')">取消</button>
+    </div><div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- ══ MY PAGE ══ -->
+<div class="sc" id="s-my">
+  <div class="h-warm"><div class="sb lt"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;">●●● WiFi 🔋</div></div>
+  <div class="nv tr"><div class="nt">我的</div></div>
+  <div style="position:relative;z-index:1;">
+    <div style="display:flex;align-items:center;gap:14px;padding-top:6px;">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.25);border:3px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0;">🌿</div>
+      <div><div style="font-family:var(--fs);font-size:20px;font-weight:700;color:white;margin-bottom:3px;">小南瓜</div><div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:var(--rp);padding:4px 10px;font-size:11px;color:rgba(255,255,255,.9);">🍼 4个月18天</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;"><div style="flex:1;background:rgba(255,255,255,.16);border-radius:10px;padding:10px 8px;text-align:center;"><div style="font-family:var(--fs);font-size:18px;font-weight:700;color:white;line-height:1;">140天</div><div style="font-size:9px;color:rgba(255,255,255,.72);margin-top:3px;">出生天数</div></div><div style="flex:1;background:rgba(255,255,255,.16);border-radius:10px;padding:10px 8px;text-align:center;"><div style="font-family:var(--fs);font-size:18px;font-weight:700;color:white;line-height:1;">328笔</div><div style="font-size:9px;color:rgba(255,255,255,.72);margin-top:3px;">总记录数</div></div><div style="flex:1;background:rgba(255,255,255,.16);border-radius:10px;padding:10px 8px;text-align:center;"><div style="font-family:var(--fs);font-size:18px;font-weight:700;color:white;line-height:1;">¥8,420</div><div style="font-size:9px;color:rgba(255,255,255,.72);margin-top:3px;">累计花费</div></div></div>
+  </div></div>
+  <div class="ms">
+    <div style="background:white;border-radius:var(--r);box-shadow:var(--sh);margin:10px 14px 0;overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--bd);"><span style="font-size:14px;font-weight:600;color:var(--g900);">成长数据</span><button class="secm" onclick="go('s-growth')">成长曲线 ›</button></div><div class="growthstats"><div class="gsitem"><div class="gsv">7.2<span class="gsu">kg</span></div><div class="gsl">体重</div><div class="gsc">↑ +0.4/月</div></div><div class="gsitem"><div class="gsv">64<span class="gsu">cm</span></div><div class="gsl">身高</div><div class="gsc">↑ +2cm/月</div></div><div class="gsitem"><div class="gsv">41<span class="gsu">cm</span></div><div class="gsl">头围</div><div class="gsc">↑ +1cm/月</div></div></div></div>
+    <div class="sec"><div class="sechd"><div class="sect">家庭成员</div><button class="secm" onclick="go('s-switch-user')">管理 ›</button></div>
+      <div class="card">
+        <div class="member-item"><div class="mi-av active" style="background:var(--rl);border-color:var(--mint);">👩</div><div class="mi-body"><div class="mi-name">妈妈（当前）</div><div class="mi-role">今天 6条记录</div></div><button onclick="openOverlay('ov-switch')" style="font-size:11px;font-weight:600;color:var(--mint);background:var(--ml);border:none;border-radius:var(--rp);padding:4px 10px;cursor:pointer;font-family:var(--fn);">切换</button></div>
+        <div class="member-item"><div class="mi-av" style="background:var(--sl);">👨</div><div class="mi-body"><div class="mi-name">爸爸</div><div class="mi-role">昨天 2条记录</div></div><div class="arr">›</div></div>
+        <div class="member-item"><div class="mi-av" style="background:var(--al);">👵</div><div class="mi-body"><div class="mi-name">奶奶</div><div class="mi-role">今天 2条记录</div></div><div class="arr">›</div></div>
+        <button class="row" onclick="go('s-add-member')"><div class="ric" style="background:var(--ml);">➕</div><div class="rb"><div class="rt">添加家庭成员</div><div class="rs">邀请更多家人一起记录</div></div><div class="rr"><div class="arr">›</div></div></button>
+      </div>
+    </div>
+    <div class="sec"><div class="sechd"><div class="sect">工具</div></div>
+      <div class="card">
+        <button class="row" onclick="go('s-growth')"><div class="ric" style="background:var(--ll);">📊</div><div class="rb"><div class="rt">成长曲线</div><div class="rs">WHO标准对比</div></div><div class="rr"><div class="arr">›</div></div></button>
+        <button class="row" onclick="go('s-vaccine')"><div class="ric" style="background:var(--ml);">💉</div><div class="rb"><div class="rt">疫苗记录</div><div class="rs">接种计划提醒</div></div><div class="rr"><span class="tag" style="background:var(--al);color:var(--ad);">3天后</span><div class="arr">›</div></div></button>
+        <button class="row" onclick="go('s-baby-edit')"><div class="ric" style="background:var(--al);">🎂</div><div class="rb"><div class="rt">宝宝基本信息</div><div class="rs">修改昵称、生日等</div></div><div class="rr"><div class="arr">›</div></div></button>
+        <button class="row"><div class="ric" style="background:var(--il);">📤</div><div class="rb"><div class="rt">导出数据</div><div class="rs">导出 CSV / PDF</div></div><div class="rr"><div class="arr">›</div></div></button>
+      </div>
+    </div>
+    <div style="height:14px;"></div>
+  </div>
+  <div class="bnav">
+    <button class="bt" onclick="go('s-home')"><div class="bt-i">🏠</div><div class="bt-l">首页</div></button>
+    <button class="bt" onclick="go('s-record')"><div class="bt-i">📋</div><div class="bt-l">记录</div></button>
+    <button class="bt" onclick="go('s-expense')"><div class="bt-i">💰</div><div class="bt-l">记账</div></button>
+    <button class="bt on" onclick="go('s-my')"><div class="bt-i">👤</div><div class="bt-l" style="color:var(--mint)">我的</div></button>
+  </div>
+</div>
+
+<!-- baby edit -->
+<div class="sc" id="s-baby-edit"><div class="sb dk"><span>9:41</span><div style="display:flex;gap:4px;font-size:11px;color:var(--g900);">●●● 🔋</div></div><div class="nv wh"><button class="bk" onclick="back()">‹</button><div class="nt">宝宝信息</div><button class="na">保存</button></div><div class="ms"><div class="fp"><div class="ff"><div class="fl">宝宝昵称</div><input class="fi" style="font-family:var(--fs);font-size:18px;font-weight:600;" value="小南瓜"></div><div class="ff"><div class="fl">出生日期</div><div style="display:flex;gap:8px;"><select class="fi" style="flex:1;"><option>2024年</option></select><select class="fi" style="flex:1;"><option>11月</option></select><select class="fi" style="flex:1;"><option>25日</option></select></div></div><div class="ff"><div class="fl">性别</div><div class="seg"><button class="sgb on" onclick="sgSel(this)">男宝 👦</button><button class="sgb" onclick="sgSel(this)">女宝 👧</button></div></div><div class="ff"><div class="fl">喂养方式</div><div class="seg"><button class="sgb" onclick="sgSel(this)">母乳</button><button class="sgb" onclick="sgSel(this)">配方奶</button><button class="sgb on" onclick="sgSel(this)">混合</button></div></div><div class="ff"><div class="fl">出生医院</div><input class="fi" value="北京妇产医院"></div></div></div><div class="sbar2"><button class="btn grn" onclick="back()">保存</button></div></div>
+
+</div><!-- /app -->
+<script>
+// ── Auth helpers ─────────────────────────────────
+function switchAuthTab(t){
+  document.getElementById('tab-login').classList.toggle('on',t==='login');
+  document.getElementById('tab-reg').classList.toggle('on',t==='reg');
+  document.getElementById('panel-login').style.display=t==='login'?'':'none';
+  document.getElementById('panel-reg').style.display=t==='reg'?'':'none';
+}
+function togglePw(id,btn){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const show=el.type==='password';
+  el.type=show?'text':'password';
+  btn.textContent=show?'🙈':'👁';
+}
+let smsCountdown=0;
+function startSmsCountdown(btnId){
+  smsCountdown=60;
+  const btn=document.getElementById(btnId);
+  if(!btn)return;
+  btn.disabled=true;
+  const t=setInterval(()=>{
+    smsCountdown--;
+    if(btn)btn.textContent=`${smsCountdown}s后重发`;
+    if(smsCountdown<=0){clearInterval(t);if(btn){btn.textContent='获取验证码';btn.disabled=false;}}
+  },1000);
+}
+function sendSms(){
+  const ph=document.getElementById('reg-phone')?.value||'';
+  if(!/^1[3-9]\d{9}$/.test(ph)){showAuthError('reg-error','请输入正确的手机号');return;}
+  hideAuthError('reg-error');
+  startSmsCountdown('sms-btn');
+  // TODO: call POST /api/auth/send-sms
+}
+function sendForgotSms(){
+  const ph=document.getElementById('forgot-phone')?.value||'';
+  if(!/^1[3-9]\d{9}$/.test(ph)){showAuthError('forgot-error','请输入正确的手机号');return;}
+  hideAuthError('forgot-error');
+  startSmsCountdown('forgot-sms-btn');
+  // TODO: call POST /api/auth/send-sms
+}
+function showAuthError(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.classList.add('show');}}
+function hideAuthError(id){const el=document.getElementById(id);if(el)el.classList.remove('show');}
+function doLogin(){
+  const phone=document.getElementById('login-phone')?.value||'';
+  const pw=document.getElementById('login-pw')?.value||'';
+  if(!/^1[3-9]\d{9}$/.test(phone)){showAuthError('login-error','请输入正确的手机号');return;}
+  if(pw.length<6){showAuthError('login-error','请输入密码');return;}
+  hideAuthError('login-error');
+  // TODO: POST /api/auth/login  →  on success: go('s-ob')
+  go('s-ob'); // demo: go directly to onboarding
+}
+function doRegister(){
+  const phone=document.getElementById('reg-phone')?.value||'';
+  const code=document.getElementById('reg-code')?.value||'';
+  const pw=document.getElementById('reg-pw')?.value||'';
+  const pw2=document.getElementById('reg-pw2')?.value||'';
+  if(!/^1[3-9]\d{9}$/.test(phone)){showAuthError('reg-error','请输入正确的手机号');return;}
+  if(code.length!==6){showAuthError('reg-error','请输入6位验证码');return;}
+  if(pw.length<8||!/[a-zA-Z]/.test(pw)||!/\d/.test(pw)){showAuthError('reg-error','密码至少8位，需含字母和数字');return;}
+  if(pw!==pw2){showAuthError('reg-error','两次密码不一致');return;}
+  if(!document.getElementById('agree-cb')?.checked){showAuthError('reg-error','请先阅读并同意用户协议');return;}
+  hideAuthError('reg-error');
+  // TODO: POST /api/auth/register  →  on success: go('s-ob')
+  go('s-ob'); // demo
+}
+function doWechatLogin(){
+  // TODO: WeChat OAuth flow
+  go('s-ob');
+}
+function doResetPw(){
+  const pw=document.getElementById('forgot-pw')?.value||'';
+  const pw2=document.getElementById('forgot-pw2')?.value||'';
+  const code=document.getElementById('forgot-code')?.value||'';
+  if(code.length!==6){showAuthError('forgot-error','请输入6位验证码');return;}
+  if(pw.length<8){showAuthError('forgot-error','密码至少8位，需含字母和数字');return;}
+  if(pw!==pw2){showAuthError('forgot-error','两次密码不一致');return;}
+  hideAuthError('forgot-error');
+  // TODO: POST /api/auth/reset-password
+  go('s-auth'); // back to login after reset
+}
+
+// ── Nav ─────────────────────────────────────────
+const stack=[];let cur='s-auth';
+document.getElementById('s-auth').classList.add('on');
+function go(id){if(!id||cur===id)return;document.getElementById(cur)?.classList.remove('on');document.getElementById(id)?.classList.add('on');stack.push(cur);cur=id;const ms=document.getElementById(id)?.querySelector('.ms');if(ms)ms.scrollTop=0;}
+function back(){if(!stack.length)return;document.getElementById(cur)?.classList.remove('on');cur=stack.pop();document.getElementById(cur)?.classList.add('on');}
+function openOverlay(id){document.getElementById(id)?.classList.add('on');}
+function closeOverlay(id){document.getElementById(id)?.classList.remove('on');}
+function closeAndGo(ov,sc){closeOverlay(ov);go(sc);}
+
+// ── Expense year/month selector ──────────────────
+const NOW_YEAR=2025, NOW_MONTH=4;
+let selYear=2025;
+function renderMonthTabs(){
+  const tabs=document.getElementById('month-tabs');if(!tabs)return;
+  tabs.innerHTML='';
+  const months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  months.forEach((m,i)=>{
+    const btn=document.createElement('button');
+    btn.className='mtab';btn.textContent=m;
+    const isFuture=(selYear===NOW_YEAR&&i+1>NOW_MONTH)||(selYear>NOW_YEAR);
+    if(isFuture){btn.disabled=true;btn.style.opacity='.3';}
+    if(selYear===NOW_YEAR&&i+1===NOW_MONTH){btn.classList.add('on');}
+    if(!isFuture){btn.onclick=()=>{tabs.querySelectorAll('.mtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');document.getElementById('yms-display').textContent=`${selYear}年${m}`;};}
+    tabs.appendChild(btn);
+  });
+}
+function setYear(y,btn){selYear=y;btn.parentElement.querySelectorAll('.yms-yr').forEach(b=>b.classList.remove('on'));btn.classList.add('on');document.getElementById('yms-display').textContent=`${y}年`;renderMonthTabs();}
+renderMonthTabs();
+
+// render add expense month selector (no future)
+function renderExpMonthSel(){
+  const sel=document.getElementById('exp-month-sel');if(!sel)return;
+  const months=['1月','2月','3月','4月'];
+  sel.innerHTML=months.map((m,i)=>`<option${i===3?' selected':''}>${m}</option>`).join('');
+}
+renderExpMonthSel();
+
+// ── Category detail sheet ─────────────────────────
+function openCatDetail(name,color,items){
+  document.getElementById('cat-sheet-title').textContent=name;
+  document.getElementById('cat-sheet-sub').textContent=`${items.length}笔 · 4月`;
+  const amts=items.map(s=>parseFloat(s.split('¥')[1])||0);
+  const total=amts.reduce((a,b)=>a+b,0);
+  document.getElementById('cat-sheet-amt').textContent='¥'+total.toLocaleString();
+  const catIcons={'奶粉/辅食':'🍼','纸尿裤':'🧷','玩具/用品':'🧸','衣物/床品':'👗'};
+  const list=document.getElementById('cat-detail-list');
+  list.innerHTML=items.map(item=>{
+    const parts=item.split(' ¥');
+    return`<div class="det-item"><div class="det-ic" style="background:${color}22;">${catIcons[name]||'📦'}</div><div class="det-b"><div class="det-name">${parts[0]}</div><div class="det-meta">4月 · 已付</div></div><div class="det-amt">¥${parts[1]}</div></div>`;
+  }).join('');
+  openOverlay('ov-cat');
+}
+
+// ── Form helpers ─────────────────────────────────
+const nvs={lf:12,rf:8,ml:120};
+function adjN(id,d){const step=id==='ml'?10:1;nvs[id]=Math.max(0,(nvs[id]||0)+d*step);const el=document.getElementById(id);if(el)el.textContent=nvs[id];}
+function setN(id,v){nvs[id]=v;const el=document.getElementById(id);if(el)el.textContent=v;}
+function sgSel(el){el.closest('.seg').querySelectorAll('.sgb').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
+function selCat(el){el.closest('.catgrid').querySelectorAll('.copt').forEach(e=>e.classList.remove('on'));el.classList.add('on');}
+
+// ── Switch user ───────────────────────────────────
+function selectMember(el,name,av){
+  document.querySelectorAll('.member-item').forEach(m=>{
+    m.querySelector('.mi-av')?.classList.remove('active');
+    const ck=m.querySelector('.mi-check');if(ck)ck.remove();
+    const lg=m.querySelector('.mi-log');
+  });
+  el.querySelector('.mi-av')?.classList.add('active');
+  const ck=document.createElement('div');ck.className='mi-check';ck.textContent='✓';
+  el.appendChild(ck);
+  closeOverlay('ov-switch');
+}
+
+// ── Vaccine custom add ────────────────────────────
+function addCustomVaccine(){
+  const name=document.getElementById('vac-name')?.value||'自定义疫苗';
+  const list=document.getElementById('custom-vac-list');if(!list)return;
+  const empty=list.querySelector('div');if(empty&&empty.textContent.includes('暂无'))empty.remove();
+  const item=document.createElement('div');item.className='vacitem';
+  item.innerHTML=`<div class="vacck"></div><div class="rb"><div class="rt vacname">${name}</div><div class="rs">自定义 · 2025年4月13日</div></div><div class="vacdate" style="color:var(--mint);">已记录</div>`;
+  item.onclick=()=>{item.classList.toggle('done');item.querySelector('.vacck').textContent=item.classList.contains('done')?'✓':'';}; 
+  list.appendChild(item);closeOverlay('ov-vaccine');
+  if(document.getElementById('vac-name'))document.getElementById('vac-name').value='';
+}
+
+// ── Growth photo "upload" (demo) ──────────────────
+const babyPhotos=['🌱','🌸','🌼','🍀','🌻'];let photoIdx=0;
+function selectPhoto(){
+  const emoji=babyPhotos[photoIdx%babyPhotos.length];photoIdx++;
+  const up=document.getElementById('photo-upload');
+  if(!up)return;
+  up.innerHTML=`<div style="font-size:80px;line-height:1;filter:drop-shadow(0 4px 12px rgba(0,0,0,.15));">${emoji}</div><button class="photo-change" onclick="event.stopPropagation();selectPhoto()">更换</button>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "baby-diary",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n fe,be -c cyan,green \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\"",
+    "build": "pnpm --filter frontend build && pnpm --filter backend build",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

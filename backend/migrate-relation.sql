@@ -1,0 +1,1 @@
+ALTER TABLE babies ADD COLUMN relation TEXT DEFAULT '妈妈';
