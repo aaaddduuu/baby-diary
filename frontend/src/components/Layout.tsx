@@ -52,21 +52,6 @@ export function Hero({ variant, children, className = "" }: HeroProps) {
   );
 }
 
-interface StatusBarProps {
-  showWifi?: boolean;
-}
-
-export function StatusBar({ showWifi = false }: StatusBarProps) {
-  return (
-    <div className="h-11 flex items-center justify-between px-0 text-xs font-semibold text-white relative z-10">
-      <span>9:41</span>
-      <div className="flex gap-1 text-[11px]">
-        ●●● {showWifi ? "WiFi " : ""}🔋
-      </div>
-    </div>
-  );
-}
-
 interface StatCardProps {
   value: string;
   label: string;

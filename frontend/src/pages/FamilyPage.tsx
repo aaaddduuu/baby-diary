@@ -66,10 +66,6 @@ export default function FamilyPage() {
   return (
     <Layout>
       <Hero variant="mint">
-        <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
-          <span>9:41</span>
-          <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
-        </div>
         <div className="flex items-center gap-2.5 py-2 relative z-10">
           <button
             onClick={() => navigate(-1)}

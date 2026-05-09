@@ -80,11 +80,7 @@ export default function GrowthPage() {
     <Layout>
       {showAdd ? (
         <>
-          <div className="h-11 flex items-center justify-between px-[18px] text-xs font-semibold text-gray-900 flex-shrink-0">
-            <span>9:41</span>
-            <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
-          </div>
-          <div className="flex items-center gap-2.5 px-[18px] py-2 bg-white border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2.5 px-[18px] py-3 bg-white border-b border-border flex-shrink-0">
             <button
               onClick={() => setShowAdd(false)}
               className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[17px] text-gray-600 border-none cursor-pointer flex-shrink-0"
@@ -161,10 +157,6 @@ export default function GrowthPage() {
       ) : (
         <>
           <Hero variant="green">
-            <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
-              <span>9:41</span>
-              <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
-            </div>
             <div className="flex items-center gap-2.5 py-2 relative z-10">
               <button
                 onClick={() => navigate(-1)}
