@@ -63,6 +63,29 @@ export default function FamilyPage() {
 
   const navigate = useNavigate();
 
+  const handleShareInvite = async () => {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const link = `${window.location.origin}/join/${code}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `邀请加入${baby?.name || "宝宝"}的家庭`,
+          text: `邀请你加入${baby?.name || "宝宝"}的家庭，一起记录宝宝的成长`,
+          url: link,
+        });
+      } catch (e) {
+        navigator.clipboard.writeText(link).then(() => {
+          alert("邀请链接已复制到剪贴板");
+        });
+      }
+    } else {
+      navigator.clipboard.writeText(link).then(() => {
+        alert("邀请链接已复制到剪贴板");
+      });
+    }
+  };
+
   return (
     <Layout>
       <Hero variant="mint" className="!pt-3">
@@ -129,7 +152,10 @@ export default function FamilyPage() {
           </div>
 
           <div className="bg-white rounded-card shadow-card overflow-hidden mb-3.5">
-            <button className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer">
+            <button
+              onClick={() => navigate("/family/add-member")}
+              className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer"
+            >
               <div className="w-12 h-12 rounded-full bg-mint-light flex items-center justify-center text-2xl">
                 ➕
               </div>
@@ -139,7 +165,10 @@ export default function FamilyPage() {
               </div>
               <div className="text-gray-300 text-lg">›</div>
             </button>
-            <button className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer border-t border-border">
+            <button
+              onClick={handleShareInvite}
+              className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer border-t border-border"
+            >
               <div className="w-12 h-12 rounded-full bg-indigo-light flex items-center justify-center text-2xl">
                 🔗
               </div>
