@@ -175,17 +175,17 @@ export default function VaccinePage() {
         </>
       ) : (
         <>
-          <Hero variant="mint">
-            <div className="flex items-center gap-2.5 py-2 relative z-10">
+          <Hero variant="mint" className="!pt-3">
+            <div className="flex items-center gap-3 relative z-10 mb-4">
               <button
                 onClick={() => navigate(-1)}
-                className="w-8 h-8 rounded-full bg-white/22 flex items-center justify-center text-[17px] text-white border-none cursor-pointer flex-shrink-0"
+                className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-lg text-white border-none cursor-pointer flex-shrink-0"
               >
                 ‹
               </button>
-              <div className="font-serif text-base font-semibold text-white flex-1">疫苗记录</div>
+              <div className="font-serif text-[17px] font-semibold text-white flex-1">疫苗记录</div>
             </div>
-            <div className="relative z-10 mt-2">
+            <div className="relative z-10">
               <div className="text-[11px] text-white/72 tracking-wider mb-1">接种进度</div>
               <div className="flex items-center gap-3">
                 <div className="font-serif text-3xl font-bold text-white">{completedCount}<span className="text-lg font-normal text-white/70">/{vaccines.length}</span></div>

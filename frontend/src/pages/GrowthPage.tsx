@@ -156,15 +156,15 @@ export default function GrowthPage() {
         </>
       ) : (
         <>
-          <Hero variant="green">
-            <div className="flex items-center gap-2.5 py-2 relative z-10">
+          <Hero variant="green" className="!pt-3">
+            <div className="flex items-center gap-3 relative z-10 mb-4">
               <button
                 onClick={() => navigate(-1)}
-                className="w-8 h-8 rounded-full bg-white/22 flex items-center justify-center text-[17px] text-white border-none cursor-pointer flex-shrink-0"
+                className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-lg text-white border-none cursor-pointer flex-shrink-0"
               >
                 ‹
               </button>
-              <div className="font-serif text-base font-semibold text-white flex-1">成长记录</div>
+              <div className="font-serif text-[17px] font-semibold text-white flex-1">成长记录</div>
             </div>
             {latest && (
               <div className="flex gap-2 mt-2 relative z-10">
