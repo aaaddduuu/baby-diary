@@ -151,30 +151,6 @@ export default function FamilyPage() {
             </button>
           </div>
 
-          <div className="bg-white rounded-card shadow-card overflow-hidden mb-3.5">
-            <div className="px-4 py-3 border-b border-border">
-              <div className="text-sm font-semibold text-gray-900">宝宝信息</div>
-            </div>
-            <div className="divide-y divide-border">
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-400">昵称</span>
-                <span className="text-sm text-gray-900 font-medium">{baby.name}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-400">性别</span>
-                <span className="text-sm text-gray-900 font-medium">{baby.gender === "male" ? "男宝 👦" : "女宝 👧"}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-400">出生日期</span>
-                <span className="text-sm text-gray-900 font-medium">{baby.birth_date}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-400">喂养方式</span>
-                <span className="text-sm text-gray-900 font-medium">{feedingLabel[baby.feeding_type] || "混合喂养"}</span>
-              </div>
-            </div>
-          </div>
-
           <div className="text-center text-xs text-gray-300 mb-4">宝宝ID: {baby.id}</div>
         </div>
       </ScrollArea>
