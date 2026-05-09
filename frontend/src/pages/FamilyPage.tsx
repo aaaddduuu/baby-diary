@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Layout, { Hero, ScrollArea } from "../components/Layout";
 import Header from "../components/Header";
 import { useBaby } from "../lib/BabyContext";
-import { useAuth } from "../lib/AuthContext";
 import { fetchRecords, fetchExpenses } from "../lib/api";
 
 function calcAge(birthDate: string): string {
@@ -25,7 +24,6 @@ function calcDays(birthDate: string): number {
 }
 
 export default function FamilyPage() {
-  const { user } = useAuth();
   const { baby } = useBaby();
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
