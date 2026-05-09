@@ -12,6 +12,7 @@ import GrowthPage from "./pages/GrowthPage";
 import VaccinePage from "./pages/VaccinePage";
 import FamilyPage from "./pages/FamilyPage";
 import AddMemberPage from "./pages/AddMemberPage";
+import JoinFamilyPage from "./pages/JoinFamilyPage";
 import MyPage from "./pages/MyPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -81,6 +82,7 @@ function AppRoutes() {
       <Route path="/vaccine" element={<BabyRequiredRoute><VaccinePage /></BabyRequiredRoute>} />
       <Route path="/family" element={<BabyRequiredRoute><FamilyPage /></BabyRequiredRoute>} />
       <Route path="/family/add-member" element={<BabyRequiredRoute><AddMemberPage /></BabyRequiredRoute>} />
+      <Route path="/join/:code" element={<JoinFamilyPage />} />
       <Route path="/my" element={<BabyRequiredRoute><MyPage /></BabyRequiredRoute>} />
     </Routes>
   );
