@@ -104,20 +104,43 @@ export default function FamilyPage() {
 
           <div className="bg-white rounded-card shadow-card overflow-hidden mb-3.5">
             <div className="px-4 py-3 border-b border-border">
-              <div className="text-sm font-semibold text-gray-900">家庭成员</div>
+              <div className="text-sm font-semibold text-gray-900">当前成员</div>
             </div>
-            <div className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-lavender-light flex items-center justify-center text-2xl">
+            <div className="divide-y divide-border">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-12 h-12 rounded-full bg-rose-light flex items-center justify-center text-2xl border-2 border-mint">
                   {relationEmoji[baby.relation] || "🧑"}
                 </div>
                 <div className="flex-1">
                   <div className="text-sm font-semibold text-gray-900">{baby.relation}</div>
-                  <div className="text-xs text-gray-400">{user?.phone}</div>
+                  <div className="text-xs text-gray-400">主要记录人 · 今天 6条记录</div>
                 </div>
-                <div className="text-xs text-mint bg-mint-light px-2 py-1 rounded-pill">创建者</div>
+                <div className="text-xs text-mint bg-mint-light px-2 py-1 rounded-pill">当前</div>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-card shadow-card overflow-hidden mb-3.5">
+            <button className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer">
+              <div className="w-12 h-12 rounded-full bg-mint-light flex items-center justify-center text-2xl">
+                ➕
+              </div>
+              <div className="flex-1 text-left">
+                <div className="text-sm font-semibold text-gray-900">添加家庭成员</div>
+                <div className="text-xs text-gray-400">邀请爷爷、外公外婆等加入</div>
+              </div>
+              <div className="text-gray-300 text-lg">›</div>
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 w-full border-none bg-transparent cursor-pointer border-t border-border">
+              <div className="w-12 h-12 rounded-full bg-indigo-light flex items-center justify-center text-2xl">
+                🔗
+              </div>
+              <div className="flex-1 text-left">
+                <div className="text-sm font-semibold text-gray-900">分享家庭邀请码</div>
+                <div className="text-xs text-gray-400">扫码或链接即可加入</div>
+              </div>
+              <div className="text-gray-300 text-lg">›</div>
+            </button>
           </div>
 
           <div className="bg-white rounded-card shadow-card overflow-hidden mb-3.5">

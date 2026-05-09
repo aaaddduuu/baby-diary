@@ -81,10 +81,14 @@ export default function HomePage() {
               {hasRecords ? `${calcAge(baby.birth_date)} · ${baby.birth_date}出生` : `今天是第 ${calcDays(baby.birth_date) + 1} 天 · ${baby.birth_date}出生`}
             </div>
           </button>
-          <div className="flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5">
+          <button
+            onClick={() => navigate("/family")}
+            className="flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5 cursor-pointer"
+          >
             <span className="text-base">{baby.relation === "妈妈" || baby.relation === "外婆" ? "👩" : "👨"}</span>
             <span className="text-xs text-white font-medium">{baby.relation}</span>
-          </div>
+            <span className="text-[10px] text-white/70">▾</span>
+          </button>
         </div>
         {hasRecords && (
           <div className="flex gap-[7px] mt-3 relative z-10">
