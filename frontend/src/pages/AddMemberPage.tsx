@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout, { Hero, ScrollArea } from "../components/Layout";
 import { useBaby } from "../lib/BabyContext";
 
-const RELATIONS = [
+const ALL_RELATIONS = [
   { label: "爸爸", emoji: "👨" },
   { label: "妈妈", emoji: "👩" },
   { label: "爷爷", emoji: "👴" },
@@ -22,6 +22,11 @@ export default function AddMemberPage() {
   const [generated, setGenerated] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [copied, setCopied] = useState(false);
+
+  const relations = useMemo(() => {
+    if (!baby?.relation) return ALL_RELATIONS;
+    return ALL_RELATIONS.filter(r => r.label !== baby.relation);
+  }, [baby?.relation]);
 
   const handleGenerate = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -94,7 +99,7 @@ export default function AddMemberPage() {
               <div className="mb-6">
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">选择称呼</div>
                 <div className="grid grid-cols-4 gap-2">
-                  {RELATIONS.map((r) => (
+                  {relations.map((r) => (
                     <button
                       key={r.label}
                       onClick={() => setSelectedRelation(r.label)}
