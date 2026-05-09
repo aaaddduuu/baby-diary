@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout, { Hero, StatCard, ScrollArea } from "../components/Layout";
+import Layout, { Hero, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import { useBaby } from "../lib/BabyContext";
 import { fetchRecords, fetchExpenses } from "../lib/api";
@@ -71,6 +71,10 @@ export default function HomePage() {
   return (
     <Layout>
       <Hero variant="mint">
+        <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
+          <span>9:41</span>
+          <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
+        </div>
         <div className="flex items-center gap-2.5 py-2 relative z-10">
           <button
             onClick={() => navigate("/family")}
@@ -92,9 +96,18 @@ export default function HomePage() {
         </div>
         {hasRecords && (
           <div className="flex gap-[7px] mt-3 relative z-10">
-            <StatCard value={`${calcDays(baby.birth_date)}天`} label="出生天数" />
-            <StatCard value={`${todayCount}次`} label="今日记录" />
-            <StatCard value={`¥${monthExpense.toLocaleString()}`} label="本月花费" />
+            <div className="bg-white/20 rounded-xl p-2 text-center flex-1">
+              <div className="font-serif text-lg font-bold text-white leading-none">{calcDays(baby.birth_date)}天</div>
+              <div className="text-[9px] text-white/72 mt-0.5">出生天数</div>
+            </div>
+            <div className="bg-white/20 rounded-xl p-2 text-center flex-1">
+              <div className="font-serif text-lg font-bold text-white leading-none">{todayCount}次</div>
+              <div className="text-[9px] text-white/72 mt-0.5">今日记录</div>
+            </div>
+            <div className="bg-white/20 rounded-xl p-2 text-center flex-1">
+              <div className="font-serif text-lg font-bold text-white leading-none">¥{monthExpense.toLocaleString()}</div>
+              <div className="text-[9px] text-white/72 mt-0.5">本月花费</div>
+            </div>
           </div>
         )}
       </Hero>
