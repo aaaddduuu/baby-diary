@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout, { Hero, ScrollArea } from "../components/Layout";
-import Header from "../components/Header";
 import { useBaby } from "../lib/BabyContext";
 import { fetchRecords, fetchExpenses } from "../lib/api";
 
@@ -61,11 +61,25 @@ export default function FamilyPage() {
     "mixed": "混合喂养",
   };
 
+  const navigate = useNavigate();
+
   return (
     <Layout>
-      <Header title="宝宝详情" variant="transparent" back />
-      <Hero variant="mint" className="!pt-0">
-        <div className="flex items-center gap-4 relative z-10">
+      <Hero variant="mint">
+        <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
+          <span>9:41</span>
+          <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
+        </div>
+        <div className="flex items-center gap-2.5 py-2 relative z-10">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-8 h-8 rounded-full bg-white/22 flex items-center justify-center text-[17px] text-white border-none cursor-pointer flex-shrink-0"
+          >
+            ‹
+          </button>
+          <div className="font-serif text-base font-semibold text-white flex-1">宝宝详情</div>
+        </div>
+        <div className="flex items-center gap-4 relative z-10 mt-2">
           <div className="w-20 h-20 rounded-full bg-white/25 border-[3px] border-white/50 flex items-center justify-center text-4xl flex-shrink-0">
             {baby.gender === "male" ? "👦" : "👧"}
           </div>

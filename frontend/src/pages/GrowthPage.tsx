@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout, { Hero, ScrollArea, Fab } from "../components/Layout";
-import Header from "../components/Header";
 import { useBaby } from "../lib/BabyContext";
 
 interface GrowthRecord {
@@ -12,6 +12,7 @@ interface GrowthRecord {
 }
 
 export default function GrowthPage() {
+  const navigate = useNavigate();
   const { baby } = useBaby();
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,77 +78,101 @@ export default function GrowthPage() {
 
   return (
     <Layout>
-      <Header title="成长记录" variant="light" back />
       {showAdd ? (
-        <ScrollArea>
-          <div className="p-4">
-            {error && (
-              <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
-            )}
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">测量日期</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                type="date"
-                value={measuredAt}
-                onChange={(e) => setMeasuredAt(e.target.value)}
-              />
-            </div>
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">体重（kg）</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                type="number"
-                step="0.1"
-                placeholder="如：7.5"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-              />
-            </div>
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">身高（cm）</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                type="number"
-                step="0.1"
-                placeholder="如：65"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-              />
-            </div>
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">头围（cm）</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                type="number"
-                step="0.1"
-                placeholder="如：42"
-                value={headCirc}
-                onChange={(e) => setHeadCirc(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAdd(false)}
-                className="flex-1 h-12 rounded-pill text-base font-semibold text-gray-600 bg-gray-100 border-none cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-green to-green-dark border-none cursor-pointer disabled:opacity-50"
-              >
-                {saving ? "保存中..." : "保存"}
-              </button>
-            </div>
+        <>
+          <div className="h-11 flex items-center justify-between px-[18px] text-xs font-semibold text-gray-900 flex-shrink-0">
+            <span>9:41</span>
+            <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
           </div>
-        </ScrollArea>
+          <div className="flex items-center gap-2.5 px-[18px] py-2 bg-white border-b border-border flex-shrink-0">
+            <button
+              onClick={() => setShowAdd(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[17px] text-gray-600 border-none cursor-pointer flex-shrink-0"
+            >
+              ✕
+            </button>
+            <div className="font-serif text-base font-semibold text-gray-900 flex-1">更新成长数据</div>
+          </div>
+          <ScrollArea>
+            <div className="p-4">
+              {error && (
+                <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
+              )}
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">测量日期</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  type="date"
+                  value={measuredAt}
+                  onChange={(e) => setMeasuredAt(e.target.value)}
+                />
+              </div>
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">体重（kg）</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  type="number"
+                  step="0.1"
+                  placeholder="如：7.5"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                />
+              </div>
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">身高（cm）</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  type="number"
+                  step="0.1"
+                  placeholder="如：65"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                />
+              </div>
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">头围（cm）</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  type="number"
+                  step="0.1"
+                  placeholder="如：42"
+                  value={headCirc}
+                  onChange={(e) => setHeadCirc(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="flex-1 h-12 rounded-pill text-base font-semibold text-gray-600 bg-gray-100 border-none cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-green to-green-dark border-none cursor-pointer disabled:opacity-50"
+                >
+                  {saving ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </div>
+          </ScrollArea>
+        </>
       ) : (
         <>
           <Hero variant="green">
-            <div className="flex items-center relative z-10">
-              <div className="font-serif text-base font-semibold text-white flex-1">成长数据</div>
+            <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
+              <span>9:41</span>
+              <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
+            </div>
+            <div className="flex items-center gap-2.5 py-2 relative z-10">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-8 h-8 rounded-full bg-white/22 flex items-center justify-center text-[17px] text-white border-none cursor-pointer flex-shrink-0"
+              >
+                ‹
+              </button>
+              <div className="font-serif text-base font-semibold text-white flex-1">成长记录</div>
             </div>
             {latest && (
               <div className="flex gap-2 mt-2 relative z-10">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout, { Hero, ScrollArea, Fab } from "../components/Layout";
-import Header from "../components/Header";
 import { useBaby } from "../lib/BabyContext";
 
 interface Vaccine {
@@ -108,64 +108,89 @@ export default function VaccinePage() {
   };
 
   const completedCount = vaccines.filter(v => v.status === "completed").length;
+  const navigate = useNavigate();
 
   return (
     <Layout>
-      <Header title="疫苗记录" variant="light" back />
       {showAdd ? (
-        <ScrollArea>
-          <div className="p-4">
-            {error && (
-              <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
-            )}
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">疫苗名称</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                placeholder="如：13价肺炎球菌疫苗"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">接种日期（选填）</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-              />
-            </div>
-            <div className="mb-3.5">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">接种医院（选填）</div>
-              <input
-                className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
-                placeholder="接种地点"
-                value={newHospital}
-                onChange={(e) => setNewHospital(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowAdd(false)}
-                className="flex-1 h-12 rounded-pill text-base font-semibold text-gray-600 bg-gray-100 border-none cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleAdd}
-                disabled={saving}
-                className="flex-1 h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark border-none cursor-pointer disabled:opacity-50"
-              >
-                {saving ? "保存中..." : "保存"}
-              </button>
-            </div>
+        <>
+          <div className="h-11 flex items-center justify-between px-[18px] text-xs font-semibold text-gray-900 flex-shrink-0">
+            <span>9:41</span>
+            <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
           </div>
-        </ScrollArea>
+          <div className="flex items-center gap-2.5 px-[18px] py-2 bg-white border-b border-border flex-shrink-0">
+            <button
+              onClick={() => setShowAdd(false)}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[17px] text-gray-600 border-none cursor-pointer flex-shrink-0"
+            >
+              ✕
+            </button>
+            <div className="font-serif text-base font-semibold text-gray-900 flex-1">添加疫苗</div>
+          </div>
+          <ScrollArea>
+            <div className="p-4">
+              {error && (
+                <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
+              )}
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">疫苗名称</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  placeholder="如：13价肺炎球菌疫苗"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">接种日期（选填）</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                />
+              </div>
+              <div className="mb-3.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">接种医院（选填）</div>
+                <input
+                  className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 outline-none focus:border-mint"
+                  placeholder="接种地点"
+                  value={newHospital}
+                  onChange={(e) => setNewHospital(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="flex-1 h-12 rounded-pill text-base font-semibold text-gray-600 bg-gray-100 border-none cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleAdd}
+                  disabled={saving}
+                  className="flex-1 h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark border-none cursor-pointer disabled:opacity-50"
+                >
+                  {saving ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </div>
+          </ScrollArea>
+        </>
       ) : (
         <>
           <Hero variant="mint">
-            <div className="flex items-center relative z-10">
+            <div className="h-11 flex items-center justify-between text-xs font-semibold text-white relative z-10">
+              <span>9:41</span>
+              <div className="flex gap-1 text-[11px]">●●● WiFi 🔋</div>
+            </div>
+            <div className="flex items-center gap-2.5 py-2 relative z-10">
+              <button
+                onClick={() => navigate(-1)}
+                className="w-8 h-8 rounded-full bg-white/22 flex items-center justify-center text-[17px] text-white border-none cursor-pointer flex-shrink-0"
+              >
+                ‹
+              </button>
               <div className="font-serif text-base font-semibold text-white flex-1">疫苗记录</div>
             </div>
             <div className="relative z-10 mt-2">
