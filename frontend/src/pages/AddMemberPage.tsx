@@ -4,6 +4,8 @@ import Layout, { Hero, ScrollArea } from "../components/Layout";
 import { useBaby } from "../lib/BabyContext";
 
 const RELATIONS = [
+  { label: "爸爸", emoji: "👨" },
+  { label: "妈妈", emoji: "👩" },
   { label: "爷爷", emoji: "👴" },
   { label: "奶奶", emoji: "👵" },
   { label: "外公", emoji: "👴" },
@@ -17,21 +19,40 @@ export default function AddMemberPage() {
   const { baby } = useBaby();
   const [selectedRelation, setSelectedRelation] = useState("");
   const [customName, setCustomName] = useState("");
-  const [inviteMethod, setInviteMethod] = useState<"link" | "qrcode">("link");
   const [generated, setGenerated] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const handleGenerate = () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setInviteCode(code);
     setGenerated(true);
+    setCopied(false);
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     const link = `${window.location.origin}/join/${inviteCode}`;
-    navigator.clipboard.writeText(link).then(() => {
-      alert("链接已复制到剪贴板");
-    });
+    
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      const textArea = document.createElement("textarea");
+      textArea.value = link;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        alert("复制失败，请手动复制链接：" + link);
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   const handleShare = async () => {
@@ -72,19 +93,19 @@ export default function AddMemberPage() {
             <>
               <div className="mb-6">
                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">选择称呼</div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {RELATIONS.map((r) => (
                     <button
                       key={r.label}
                       onClick={() => setSelectedRelation(r.label)}
-                      className={`flex items-center gap-2 p-3 rounded-card border-2 cursor-pointer transition-all ${
+                      className={`flex flex-col items-center gap-1 p-3 rounded-card border-2 cursor-pointer transition-all ${
                         selectedRelation === r.label
                           ? "border-mint bg-mint-light"
                           : "border-transparent bg-white shadow-card"
                       }`}
                     >
                       <span className="text-xl">{r.emoji}</span>
-                      <span className={`text-sm font-medium ${selectedRelation === r.label ? "text-mint-dark" : "text-gray-900"}`}>
+                      <span className={`text-xs font-medium ${selectedRelation === r.label ? "text-mint-dark" : "text-gray-900"}`}>
                         {r.label}
                       </span>
                     </button>
@@ -102,38 +123,12 @@ export default function AddMemberPage() {
                 />
               </div>
 
-              <div className="bg-indigo-light rounded-card p-4 mb-6">
-                <div className="text-sm font-semibold text-indigo-dark mb-2">邀请方式</div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setInviteMethod("link")}
-                    className={`flex-1 h-11 rounded-sm text-sm font-medium border-2 cursor-pointer transition-all ${
-                      inviteMethod === "link"
-                        ? "border-indigo bg-white text-indigo"
-                        : "border-transparent bg-white/50 text-gray-600"
-                    }`}
-                  >
-                    发送链接
-                  </button>
-                  <button
-                    onClick={() => setInviteMethod("qrcode")}
-                    className={`flex-1 h-11 rounded-sm text-sm font-medium border-2 cursor-pointer transition-all ${
-                      inviteMethod === "qrcode"
-                        ? "border-indigo bg-white text-indigo"
-                        : "border-transparent bg-white/50 text-gray-600"
-                    }`}
-                  >
-                    二维码
-                  </button>
-                </div>
-              </div>
-
               <button
                 onClick={handleGenerate}
                 disabled={!selectedRelation}
                 className="w-full h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark border-none cursor-pointer disabled:opacity-50"
               >
-                生成邀请
+                生成邀请链接
               </button>
             </>
           ) : (
@@ -150,17 +145,12 @@ export default function AddMemberPage() {
                   <div className="font-serif text-3xl font-bold text-mint tracking-wider">{inviteCode}</div>
                 </div>
 
-                {inviteMethod === "qrcode" && (
-                  <div className="bg-white border-2 border-gray-200 rounded-card p-6 mb-4 inline-block">
-                    <div className="w-48 h-48 bg-gray-100 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-4xl mb-2">📱</div>
-                        <div className="text-xs text-gray-400">二维码示例</div>
-                        <div className="font-mono text-sm font-bold text-gray-600 mt-1">{inviteCode}</div>
-                      </div>
-                    </div>
+                <div className="bg-gray-50 rounded-card p-4 mb-4">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">邀请链接</div>
+                  <div className="text-sm text-gray-600 break-all bg-white p-3 rounded-sm border border-border">
+                    {`${window.location.origin}/join/${inviteCode}`}
                   </div>
-                )}
+                </div>
 
                 <div className="text-xs text-gray-400 mb-4">
                   链接有效期：7天
@@ -172,15 +162,26 @@ export default function AddMemberPage() {
                   onClick={handleShare}
                   className="flex-1 h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark border-none cursor-pointer"
                 >
-                  {inviteMethod === "link" ? "复制链接" : "分享二维码"}
+                  分享邀请
                 </button>
                 <button
-                  onClick={() => setGenerated(false)}
-                  className="flex-1 h-12 rounded-pill text-base font-semibold text-gray-600 bg-gray-100 border-none cursor-pointer"
+                  onClick={handleCopyLink}
+                  className={`flex-1 h-12 rounded-pill text-base font-semibold border-none cursor-pointer transition-all ${
+                    copied
+                      ? "bg-green text-white"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
                 >
-                  重新生成
+                  {copied ? "已复制 ✓" : "复制链接"}
                 </button>
               </div>
+              
+              <button
+                onClick={() => setGenerated(false)}
+                className="w-full h-10 mt-3 rounded-pill text-sm font-medium text-gray-500 bg-transparent border-none cursor-pointer"
+              >
+                重新生成
+              </button>
             </div>
           )}
         </div>
