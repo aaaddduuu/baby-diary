@@ -24,24 +24,25 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
   const years = generateRange(currentYear - 10, currentYear);
   const months = generateRange(1, 12);
 
-  const [pickerValue, setPickerValue] = useState(() => {
+  const getInitialValue = () => {
     if (value) {
       const [y, m, d] = value.split("-");
       return { year: y, month: m, day: d };
     }
     return {
       year: String(currentYear),
-      month: String(currentMonth),
-      day: String(currentDay),
+      month: String(currentMonth).padStart(2, "0"),
+      day: String(currentDay).padStart(2, "0"),
     };
-  });
+  };
+
+  const [pickerValue, setPickerValue] = useState(getInitialValue);
 
   useEffect(() => {
-    if (value) {
-      const [y, m, d] = value.split("-");
-      setPickerValue({ year: y, month: m, day: d });
+    if (visible) {
+      setPickerValue(getInitialValue());
     }
-  }, [value]);
+  }, [visible, value]);
 
   const daysInMonth = new Date(
     Number(pickerValue.year),
@@ -52,7 +53,7 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
 
   useEffect(() => {
     if (Number(pickerValue.day) > daysInMonth) {
-      setPickerValue((prev) => ({ ...prev, day: String(daysInMonth) }));
+      setPickerValue((prev) => ({ ...prev, day: String(daysInMonth).padStart(2, "0") }));
     }
   }, [pickerValue.year, pickerValue.month, daysInMonth]);
 

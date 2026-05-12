@@ -4,6 +4,7 @@ import auth from "./routes/auth";
 import babies from "./routes/babies";
 import expenses from "./routes/expenses";
 import records from "./routes/records";
+import family from "./routes/family";
 
 type Bindings = {
   DB: D1Database;
@@ -18,6 +19,7 @@ app.route("/api/auth", auth);
 app.route("/api/babies", babies);
 app.route("/api/expenses", expenses);
 app.route("/api/records", records);
+app.route("/api/family", family);
 
 app.get("/api/health", (c) => {
   return c.json({ success: true, data: { status: "ok", timestamp: Date.now() } });

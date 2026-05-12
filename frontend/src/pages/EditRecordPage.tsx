@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Layout, { ScrollArea } from "../components/Layout";
 import Header from "../components/Header";
 import NumberKeyboard from "../components/NumberKeyboard";
 import SleepTimePicker from "../components/SleepTimePicker";
-import { createRecord } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 const RECORD_TYPES = [
   { type: "breast_milk", icon: "🤱", label: "母乳" },
@@ -44,49 +45,30 @@ function formatDateTimeDisplay(dt: { date: string; hour: number; minute: number 
   return `${dateLabel}  ${timeLabel}`;
 }
 
-function calcDuration(start: { date: string; hour: number; minute: number }, end: { date: string; hour: number; minute: number }): string | null {
-  const startDate = new Date(`${start.date}T${String(start.hour).padStart(2, "0")}:${String(start.minute).padStart(2, "0")}:00`);
-  const endDate = new Date(`${end.date}T${String(end.hour).padStart(2, "0")}:${String(end.minute).padStart(2, "0")}:00`);
-  const diffMs = endDate.getTime() - startDate.getTime();
-
-  if (diffMs <= 0) return null;
-
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (hours > 0) {
-    return `共 ${hours}小时${minutes}分`;
-  }
-  return `共 ${minutes}分钟`;
+function parseDateTime(isoStr: string): { date: string; hour: number; minute: number } {
+  const d = new Date(isoStr);
+  return {
+    date: isoStr.slice(0, 10),
+    hour: d.getHours(),
+    minute: d.getMinutes(),
+  };
 }
 
-function isEndBeforeStart(start: { date: string; hour: number; minute: number }, end: { date: string; hour: number; minute: number }): boolean {
-  const startDate = new Date(`${start.date}T${String(start.hour).padStart(2, "0")}:${String(start.minute).padStart(2, "0")}:00`);
-  const endDate = new Date(`${end.date}T${String(end.hour).padStart(2, "0")}:${String(end.minute).padStart(2, "0")}:00`);
-  return endDate.getTime() < startDate.getTime();
-}
-
-export default function AddRecordPage() {
+export default function EditRecordPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { id } = useParams<{ id: string }>();
   const { baby } = useBaby();
 
-  const initialType = searchParams.get("type") || "breast_milk";
-  const [type, setType] = useState(initialType);
+  const [type, setType] = useState("breast_milk");
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [breastSide, setBreastSide] = useState<"left" | "right" | "both">("both");
   const [breastLeft, setBreastLeft] = useState(10);
   const [breastRight, setBreastRight] = useState(10);
-  const [formulaMl, setFormulaMl] = useState(() => {
-    const saved = localStorage.getItem("last_formula_ml");
-    return saved ? Number(saved) : 120;
-  });
-  const [formulaPreset, setFormulaPreset] = useState<number | null>(() => {
-    const saved = localStorage.getItem("last_formula_ml");
-    return saved && FORMULA_PRESETS.includes(Number(saved)) ? Number(saved) : 120;
-  });
+  const [formulaMl, setFormulaMl] = useState(120);
+  const [formulaPreset, setFormulaPreset] = useState<number | null>(120);
   const [showFormulaKeyboard, setShowFormulaKeyboard] = useState(false);
 
   const [sleepStart, setSleepStart] = useState(getDefaultTime);
@@ -99,25 +81,40 @@ export default function AddRecordPage() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    if (type === "formula") {
-      localStorage.setItem("last_formula_ml", String(formulaMl));
-    }
-  }, [formulaMl, type]);
+    if (!id) return;
+    setFetchLoading(true);
+    fetch(`${API_BASE}/records/${id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const record = data.data;
+          setType(record.type);
+          const recordData = JSON.parse(record.data);
 
-  const sleepDuration = useMemo(() => {
-    if (sleeping) return null;
-    return calcDuration(sleepStart, sleepEnd);
-  }, [sleepStart, sleepEnd, sleeping]);
+          if (record.type === "breast_milk") {
+            setBreastSide(recordData.side || "both");
+            setBreastLeft(recordData.leftMin || 0);
+            setBreastRight(recordData.rightMin || 0);
+          } else if (record.type === "formula") {
+            setFormulaMl(recordData.ml || 120);
+            setFormulaPreset(FORMULA_PRESETS.includes(recordData.ml) ? recordData.ml : null);
+          } else if (record.type === "sleep") {
+            setSleepStart(parseDateTime(recordData.start));
+            setSleepEnd(parseDateTime(recordData.end));
+            setSleeping(recordData.sleeping || false);
+          } else if (record.type === "diaper") {
+            setDiaperType(recordData.diaper_type || "wet");
+            setDiaperColor(recordData.color || "yellow");
+          }
 
-  const isInvalidTime = useMemo(() => {
-    if (sleeping) return false;
-    return isEndBeforeStart(sleepStart, sleepEnd);
-  }, [sleepStart, sleepEnd, sleeping]);
-
-  const canSubmit = useMemo(() => {
-    if (type === "sleep" && !sleeping && isInvalidTime) return false;
-    return true;
-  }, [type, sleeping, isInvalidTime]);
+          if (recordData.note) setNote(recordData.note);
+        }
+      })
+      .catch(() => setError("加载记录失败"))
+      .finally(() => setFetchLoading(false));
+  }, [id]);
 
   const handleFormulaPreset = (ml: number) => {
     setFormulaMl(ml);
@@ -130,20 +127,8 @@ export default function AddRecordPage() {
     setFormulaPreset(FORMULA_PRESETS.includes(newVal) ? newVal : null);
   };
 
-  const handleFormulaKeyboardConfirm = (value: string) => {
-    const num = Number(value);
-    if (num > 0) {
-      setFormulaMl(num);
-      setFormulaPreset(FORMULA_PRESETS.includes(num) ? num : null);
-    }
-    setShowFormulaKeyboard(false);
-  };
-
   const handleSubmit = async () => {
-    if (!baby) {
-      setError("请先添加宝宝");
-      return;
-    }
+    if (!baby || !id) return;
 
     setLoading(true);
     setError("");
@@ -168,29 +153,45 @@ export default function AddRecordPage() {
     }
 
     try {
-      await createRecord({
-        baby_id: baby.id,
-        type,
-        data,
-        recorded_at: new Date().toISOString(),
+      const res = await fetch(`${API_BASE}/records/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ type, data }),
       });
-      navigate("/record");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      const result = await res.json();
+      if (result.success) {
+        navigate("/record");
+      } else {
+        setError(result.message || "更新失败");
+      }
+    } catch {
+      setError("更新失败");
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetchLoading) {
+    return (
+      <Layout>
+        <Header title="编辑记录" variant="light" back />
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-gray-400 text-sm">加载中...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <Header title="添加记录" variant="light" back />
+      <Header title="编辑记录" variant="light" back />
       <ScrollArea>
         <div className="p-4">
           {error && (
-            <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">
-              {error}
-            </div>
+            <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
           )}
 
           <div className="mb-4">
@@ -228,9 +229,7 @@ export default function AddRecordPage() {
                         key={opt.value}
                         onClick={() => setBreastSide(opt.value)}
                         className={`flex-1 h-10 rounded-sm text-sm font-semibold cursor-pointer border-none transition-all ${
-                          breastSide === opt.value
-                            ? "bg-[#4AB89A] text-white"
-                            : "bg-gray-100 text-gray-600"
+                          breastSide === opt.value ? "bg-[#4AB89A] text-white" : "bg-gray-100 text-gray-600"
                         }`}
                       >
                         {opt.label}
@@ -271,9 +270,7 @@ export default function AddRecordPage() {
                         key={ml}
                         onClick={() => handleFormulaPreset(ml)}
                         className={`flex-shrink-0 px-3 py-1.5 rounded-pill text-sm font-medium cursor-pointer border transition-all ${
-                          formulaPreset === ml
-                            ? "bg-[#4AB89A] text-white border-[#4AB89A]"
-                            : "bg-white text-[#4AB89A] border-[#4AB89A]"
+                          formulaPreset === ml ? "bg-[#4AB89A] text-white border-[#4AB89A]" : "bg-white text-[#4AB89A] border-[#4AB89A]"
                         }`}
                       >
                         {ml}ml
@@ -302,10 +299,7 @@ export default function AddRecordPage() {
               <div className="space-y-3.5">
                 <div>
                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">开始时间</div>
-                  <button
-                    onClick={() => setShowPicker("start")}
-                    className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 text-left cursor-pointer"
-                  >
+                  <button onClick={() => setShowPicker("start")} className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 text-left cursor-pointer">
                     {formatDateTimeDisplay(sleepStart)}
                   </button>
                 </div>
@@ -313,12 +307,7 @@ export default function AddRecordPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">结束时间</div>
                     <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={sleeping}
-                        onChange={(e) => setSleeping(e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-mint focus:ring-mint"
-                      />
+                      <input type="checkbox" checked={sleeping} onChange={(e) => setSleeping(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-mint focus:ring-mint" />
                       <span className="text-xs text-gray-500">睡眠中</span>
                     </label>
                   </div>
@@ -326,24 +315,12 @@ export default function AddRecordPage() {
                     onClick={() => !sleeping && setShowPicker("end")}
                     disabled={sleeping}
                     className={`w-full h-11 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-left cursor-pointer transition-all ${
-                      sleeping
-                        ? "bg-gray-50 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-100 text-gray-900"
+                      sleeping ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "bg-gray-100 text-gray-900"
                     }`}
                   >
                     {sleeping ? "睡眠中..." : formatDateTimeDisplay(sleepEnd)}
                   </button>
                 </div>
-                {sleepDuration && (
-                  <div className="text-sm text-sky font-medium text-center py-1">
-                    {sleepDuration}
-                  </div>
-                )}
-                {isInvalidTime && !sleeping && (
-                  <div className="text-xs text-danger text-center">
-                    结束时间不能早于开始时间
-                  </div>
-                )}
               </div>
             )}
 
@@ -361,9 +338,7 @@ export default function AddRecordPage() {
                         key={opt.value}
                         onClick={() => setDiaperType(opt.value)}
                         className={`flex-1 h-10 rounded-sm text-sm font-semibold cursor-pointer border-2 transition-all ${
-                          diaperType === opt.value
-                            ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark"
-                            : "bg-gray-100 border-transparent text-gray-600"
+                          diaperType === opt.value ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark" : "bg-gray-100 border-transparent text-gray-600"
                         }`}
                       >
                         {opt.label}
@@ -375,50 +350,23 @@ export default function AddRecordPage() {
                   <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">颜色</div>
                   <div className="flex gap-2">
                     {[
-                      { value: "yellow", label: "黄色", dot: "#E8A030", badge: { text: "正常 ✓", color: "bg-green text-white" } },
-                      { value: "green", label: "绿色", dot: "#5AA870", badge: { text: "注意", color: "bg-amber text-white" } },
-                      { value: "brown", label: "棕色", dot: "#8B6914", badge: { text: "正常 ✓", color: "bg-green text-white" } },
-                      { value: "other", label: "其他", dot: null, badge: null },
+                      { value: "yellow", label: "黄色" },
+                      { value: "green", label: "绿色" },
+                      { value: "brown", label: "棕色" },
+                      { value: "other", label: "其他" },
                     ].map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => setDiaperColor(opt.value)}
-                        className={`relative flex-1 h-9 rounded-sm text-xs font-semibold cursor-pointer border-2 transition-all ${
-                          diaperColor === opt.value
-                            ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark"
-                            : "bg-gray-100 border-transparent text-gray-600"
+                        className={`flex-1 h-9 rounded-sm text-xs font-semibold cursor-pointer border-2 transition-all ${
+                          diaperColor === opt.value ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark" : "bg-gray-100 border-transparent text-gray-600"
                         }`}
                       >
-                        {opt.badge && (
-                          <div className={`absolute -top-2 -right-1 px-1 py-0.5 rounded text-[8px] font-bold ${opt.badge.color}`}>
-                            {opt.badge.text}
-                          </div>
-                        )}
-                        <span className="inline-flex items-center gap-1">
-                          {opt.dot ? (
-                            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: opt.dot }} />
-                          ) : (
-                            <span className="w-2 h-2 rounded-full inline-block border border-gray-400" />
-                          )}
-                          {opt.label}
-                        </span>
+                        {opt.label}
                       </button>
                     ))}
                   </div>
                 </div>
-                {(diaperColor === "green") && (
-                  <div className="bg-amber-light border border-amber rounded-sm p-3 relative">
-                    <button
-                      onClick={() => setDiaperColor("yellow")}
-                      className="absolute top-2 right-2 w-5 h-5 rounded-full bg-amber/20 flex items-center justify-center text-amber text-xs border-none cursor-pointer"
-                    >
-                      ×
-                    </button>
-                    <div className="text-xs text-amber-dark pr-6">
-                      💡 绿色便便可能与饮食或肠胃有关，如持续出现建议咨询医生
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -437,14 +385,10 @@ export default function AddRecordPage() {
       <div className="p-4 bg-white border-t border-border flex-shrink-0">
         <button
           onClick={handleSubmit}
-          disabled={loading || !canSubmit}
-          className={`w-full h-12 rounded-pill text-base font-semibold border-none cursor-pointer transition-all ${
-            canSubmit
-              ? "text-white bg-gradient-to-br from-mint to-mint-dark shadow-[0_4px_14px_rgba(74,184,154,.3)]"
-              : "text-gray-400 bg-gray-200"
-          } disabled:opacity-50`}
+          disabled={loading}
+          className="w-full h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark shadow-[0_4px_14px_rgba(74,184,154,.3)] border-none cursor-pointer disabled:opacity-50"
         >
-          {loading ? "保存中..." : "保存记录"}
+          {loading ? "更新中..." : "更新记录"}
         </button>
       </div>
 
@@ -452,26 +396,20 @@ export default function AddRecordPage() {
         visible={showPicker === "start"}
         title="选择开始时间"
         value={sleepStart}
-        onConfirm={(val) => {
-          setSleepStart(val);
-          setShowPicker(null);
-        }}
+        onConfirm={(val) => { setSleepStart(val); setShowPicker(null); }}
         onCancel={() => setShowPicker(null)}
       />
       <SleepTimePicker
         visible={showPicker === "end"}
         title="选择结束时间"
         value={sleepEnd}
-        onConfirm={(val) => {
-          setSleepEnd(val);
-          setShowPicker(null);
-        }}
+        onConfirm={(val) => { setSleepEnd(val); setShowPicker(null); }}
         onCancel={() => setShowPicker(null)}
       />
       <NumberKeyboard
         visible={showFormulaKeyboard}
         value={String(formulaMl)}
-        onConfirm={handleFormulaKeyboardConfirm}
+        onConfirm={(v) => { setFormulaMl(Number(v)); setShowFormulaKeyboard(false); }}
         onCancel={() => setShowFormulaKeyboard(false)}
       />
     </Layout>

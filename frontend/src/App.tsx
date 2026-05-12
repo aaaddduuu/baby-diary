@@ -6,6 +6,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import HomePage from "./pages/HomePage";
 import RecordPage from "./pages/RecordPage";
 import AddRecordPage from "./pages/AddRecordPage";
+import EditRecordPage from "./pages/EditRecordPage";
 import ExpensePage from "./pages/ExpensePage";
 import AddExpensePage from "./pages/AddExpensePage";
 import GrowthPage from "./pages/GrowthPage";
@@ -14,6 +15,7 @@ import FamilyPage from "./pages/FamilyPage";
 import AddMemberPage from "./pages/AddMemberPage";
 import JoinFamilyPage from "./pages/JoinFamilyPage";
 import MyPage from "./pages/MyPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -76,6 +78,7 @@ function AppRoutes() {
       <Route path="/home" element={<BabyRequiredRoute><HomePage /></BabyRequiredRoute>} />
       <Route path="/record" element={<BabyRequiredRoute><RecordPage /></BabyRequiredRoute>} />
       <Route path="/record/add" element={<BabyRequiredRoute><AddRecordPage /></BabyRequiredRoute>} />
+      <Route path="/record/edit/:id" element={<BabyRequiredRoute><EditRecordPage /></BabyRequiredRoute>} />
       <Route path="/expense" element={<BabyRequiredRoute><ExpensePage /></BabyRequiredRoute>} />
       <Route path="/expense/add" element={<BabyRequiredRoute><AddExpensePage /></BabyRequiredRoute>} />
       <Route path="/growth" element={<BabyRequiredRoute><GrowthPage /></BabyRequiredRoute>} />
@@ -84,6 +87,7 @@ function AppRoutes() {
       <Route path="/family/add-member" element={<BabyRequiredRoute><AddMemberPage /></BabyRequiredRoute>} />
       <Route path="/join/:code" element={<JoinFamilyPage />} />
       <Route path="/my" element={<BabyRequiredRoute><MyPage /></BabyRequiredRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
     </Routes>
   );
 }

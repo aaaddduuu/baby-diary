@@ -43,6 +43,25 @@ export interface AuthData {
   user: { id: number; phone: string; name: string | null };
 }
 
+export interface FamilyMember {
+  id: number;
+  family_id: number;
+  user_id: number;
+  role: string;
+  nickname: string;
+  avatar_emoji: string;
+  phone: string | null;
+  user_name: string | null;
+  created_at: string;
+}
+
+export interface Family {
+  id: number;
+  name: string;
+  invite_code: string;
+  created_at: string;
+}
+
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -162,6 +181,52 @@ export async function createRecord(data: {
   const res = await request<BabyRecord>("/records", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+  return res.data;
+}
+
+export async function fetchFamily(): Promise<{ family: Family | null; members: FamilyMember[] }> {
+  const res = await request<{ family: Family | null; members: FamilyMember[] }>("/family");
+  return res.data;
+}
+
+export async function createFamily(data: {
+  baby_id: number;
+  relation: string;
+  name?: string;
+}): Promise<Family> {
+  const res = await request<Family>("/family/create", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return res.data;
+}
+
+export async function inviteFamilyMember(data: {
+  relation: string;
+  name?: string;
+}): Promise<{ invite_code: string; relation: string; name?: string }> {
+  const res = await request<{ invite_code: string; relation: string; name?: string }>("/family/invite", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return res.data;
+}
+
+export async function joinFamily(data: {
+  invite_code: string;
+  relation?: string;
+}): Promise<{ family: Family }> {
+  const res = await request<{ family: Family }>("/family/join", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return res.data;
+}
+
+export async function removeFamilyMember(memberId: number): Promise<{ id: number }> {
+  const res = await request<{ id: number }>(`/family/members/${memberId}`, {
+    method: "DELETE",
   });
   return res.data;
 }

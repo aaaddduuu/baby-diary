@@ -81,7 +81,7 @@ export default function AddMemberPage() {
 
   return (
     <Layout>
-      <Hero variant="mint" className="!pt-3">
+      <Hero className="!pt-3">
         <div className="flex items-center gap-3 relative z-10 mb-4">
           <button
             onClick={() => navigate(-1)}

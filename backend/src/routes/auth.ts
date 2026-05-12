@@ -117,4 +117,48 @@ auth.get("/me", async (c) => {
   }
 });
 
+auth.put("/profile", async (c) => {
+  try {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return c.json({ success: false, data: null, message: "未登录" }, 401);
+    }
+
+    const token = authHeader.slice(7);
+    const payload = await verify(token, c.env.JWT_SECRET, "HS256");
+    const userId = payload.sub;
+
+    const body = await c.req.json();
+    const { name, avatar } = body;
+
+    if (!name && !avatar) {
+      return c.json({ success: false, data: null, message: "请提供要更新的信息" }, 400);
+    }
+
+    const updates: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (name) {
+      updates.push("name = ?");
+      params.push(name);
+    }
+    if (avatar) {
+      updates.push("avatar = ?");
+      params.push(avatar);
+    }
+
+    params.push(userId);
+
+    await c.env.DB.prepare(
+      `UPDATE users SET ${updates.join(", ")} WHERE id = ?`
+    ).bind(...params).run();
+
+    const user = await c.env.DB.prepare("SELECT id, phone, name, avatar, created_at FROM users WHERE id = ?").bind(userId).first();
+
+    return c.json({ success: true, data: user });
+  } catch (e) {
+    return c.json({ success: false, data: null, message: String(e) }, 500);
+  }
+});
+
 export default auth;

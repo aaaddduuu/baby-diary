@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { ReactNode } from "react";
 import type { Baby } from "./api";
 import { fetchBabies } from "./api";
@@ -20,19 +20,25 @@ export function BabyProvider({ children }: { children: ReactNode }) {
   const [baby, setBaby] = useState<Baby | null>(null);
   const [babies, setBabies] = useState<Baby[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+
+    if (!initialized.current) {
+      setLoading(true);
+    }
+
     try {
       const data = await fetchBabies();
       setBabies(data);
       if (data.length > 0 && !baby) {
         setBaby(data[0]);
       }
+      initialized.current = true;
     } catch {
     } finally {
       setLoading(false);

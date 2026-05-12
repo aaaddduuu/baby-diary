@@ -1,8 +1,31 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout, { Hero, ScrollArea } from "../components/Layout";
+import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import { useBaby } from "../lib/BabyContext";
 import { useAuth } from "../lib/AuthContext";
+import { fetchRecords, fetchExpenses, fetchFamily } from "../lib/api";
+import type { FamilyMember } from "../lib/api";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+
+interface GrowthRecord {
+  id: number;
+  weight: number | null;
+  height: number | null;
+  head_circumference: number | null;
+  measured_at: string;
+}
+
+interface Vaccine {
+  id: number;
+  status: string;
+}
+
+function maskPhone(phone: string): string {
+  if (!phone || phone.length < 7) return phone;
+  return phone.slice(0, 3) + "****" + phone.slice(-4);
+}
 
 function calcAge(birthDate: string): string {
   const birth = new Date(birthDate);
@@ -23,19 +46,88 @@ function calcDays(birthDate: string): number {
   return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function getDefaultNickname(relation?: string): string {
+  const map: Record<string, string> = {
+    "妈妈": "宝宝的妈妈",
+    "爸爸": "宝宝的爸爸",
+    "奶奶": "宝宝的奶奶",
+    "爷爷": "宝宝的爷爷",
+    "外婆": "宝宝的外婆",
+    "外公": "宝宝的外公",
+  };
+  return map[relation || ""] || "宝宝的家长";
+}
+
 export default function MyPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { baby } = useBaby();
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [monthExpense, setMonthExpense] = useState(0);
+  const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
+  const [pendingVaccines, setPendingVaccines] = useState(0);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+
+  useEffect(() => {
+    if (!baby) return;
+
+    fetchRecords(baby.id)
+      .then(records => setTotalRecords(records.length))
+      .catch(() => {});
+
+    fetchExpenses(baby.id)
+      .then(expenses => {
+        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        setTotalExpense(total);
+      })
+      .catch(() => {});
+
+    const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+    fetchExpenses(baby.id, currentMonth)
+      .then(expenses => {
+        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        setMonthExpense(total);
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE}/babies/${baby.id}/growth`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setGrowthRecords(data.data);
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE}/babies/${baby.id}/vaccines`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const pending = data.data.filter((v: Vaccine) => v.status === "planned").length;
+          setPendingVaccines(pending);
+        }
+      })
+      .catch(() => {});
+
+    fetchFamily()
+      .then(data => setFamilyMembers(data.members))
+      .catch(() => {});
+  }, [baby]);
 
   const handleLogout = () => {
     logout();
     navigate("/auth");
   };
 
+  const displayName = user?.name || getDefaultNickname(baby?.relation);
+  const latestGrowth = growthRecords[0];
+
   return (
     <Layout>
-      <Hero variant="warm">
+      <Hero>
         <div className="flex items-center relative z-10">
           <div className="font-serif text-base font-semibold text-white flex-1">我的</div>
         </div>
@@ -46,43 +138,86 @@ export default function MyPage() {
           <div>
             <div className="font-serif text-xl font-bold text-white mb-0.5">{baby?.name || "未添加宝宝"}</div>
             {baby && (
-              <div className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5 text-[11px] text-white/90">
+              <button
+                onClick={() => navigate("/profile")}
+                className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5 text-[11px] text-white/90 cursor-pointer border-none"
+              >
                 {baby.feeding_type === "breast" ? "🤱 母乳" : baby.feeding_type === "formula" ? "🍼 配方奶" : "🍼 混合"} · {calcAge(baby.birth_date)}
-              </div>
+              </button>
             )}
           </div>
         </div>
         {baby && (
-          <div className="flex gap-2 mt-3.5 relative z-10">
-            <div className="flex-1 bg-white/16 rounded-[10px] py-2.5 px-2 text-center">
-              <div className="font-serif text-lg font-bold text-white leading-none">{calcDays(baby.birth_date)}天</div>
-              <div className="text-[9px] text-white/72 mt-0.5">出生天数</div>
-            </div>
-            <div className="flex-1 bg-white/16 rounded-[10px] py-2.5 px-2 text-center">
-              <div className="font-serif text-lg font-bold text-white leading-none">{baby.birth_date}</div>
-              <div className="text-[9px] text-white/72 mt-0.5">出生日期</div>
-            </div>
+          <div className="flex gap-[7px] mt-3.5 relative z-10">
+            <HeroStatCard value={`${calcDays(baby.birth_date)}`} label="出生天数" suffix="天" />
+            <HeroStatCard value={`${totalRecords}`} label="总记录数" suffix="笔" />
+            <HeroStatCard value={`¥${totalExpense.toLocaleString()}`} label="累计花费" />
           </div>
         )}
       </Hero>
       <ScrollArea>
+        <div className="mt-2.5 mx-3.5">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">账号</div>
+          <div className="bg-white rounded-card shadow-card overflow-hidden">
+            <button
+              onClick={() => navigate("/profile")}
+              className="flex items-center w-full py-3 px-3.5 border-b border-border bg-transparent cursor-pointer text-left"
+            >
+              <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center text-base flex-shrink-0 mr-[11px]">📱</div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">{maskPhone(user?.phone || "")}</div>
+                <div className="text-[10px] text-gray-400">{displayName}</div>
+              </div>
+              {!user?.name && (
+                <div className="flex items-center gap-1 text-[11px] text-amber bg-amber-light px-2 py-1 rounded-pill flex-shrink-0">
+                  去设置 <span className="text-[10px]">›</span>
+                </div>
+              )}
+              <div className="text-gray-400 ml-2">›</div>
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-card shadow-card mt-2.5 mx-3.5 overflow-hidden">
           <div className="flex items-center justify-between py-[11px] px-3.5 border-b border-border">
             <span className="text-sm font-semibold text-gray-900">成长数据</span>
             <button onClick={() => navigate("/growth")} className="text-xs text-mint cursor-pointer border-none bg-transparent font-sans">成长曲线 ›</button>
           </div>
-          <div className="p-3.5 text-center text-gray-400 text-sm">
-            点击查看成长曲线
-          </div>
+          {latestGrowth ? (
+            <div className="p-3.5">
+              <div className="flex items-center justify-center gap-4">
+                {latestGrowth.weight && (
+                  <div className="text-sm text-gray-900">⚖️ {latestGrowth.weight}kg</div>
+                )}
+                {latestGrowth.height && (
+                  <div className="text-sm text-gray-900">📏 {latestGrowth.height}cm</div>
+                )}
+                {latestGrowth.head_circumference && (
+                  <div className="text-sm text-gray-900">⭕ {latestGrowth.head_circumference}cm</div>
+                )}
+              </div>
+              <div className="text-xs text-gray-400 text-center mt-1.5">{latestGrowth.measured_at} 测量</div>
+            </div>
+          ) : (
+            <div className="p-3.5 text-center">
+              <div className="text-sm text-gray-400 mb-2">还未记录成长数据</div>
+              <button
+                onClick={() => navigate("/growth")}
+                className="text-sm font-medium text-white bg-mint px-4 py-2 rounded-pill border-none cursor-pointer"
+              >
+                + 立即记录
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-2.5 mx-3.5">
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">功能</div>
           <div className="bg-white rounded-card shadow-card overflow-hidden">
             {[
-              { icon: "📏", label: "成长记录", path: "/growth" },
-              { icon: "💉", label: "疫苗记录", path: "/vaccine" },
-              { icon: "💰", label: "记账", path: "/expense" },
+              { icon: "📏", label: "成长记录", path: "/growth", badge: `共 ${growthRecords.length} 条`, badgeColor: "text-gray-400" },
+              { icon: "💉", label: "疫苗记录", path: "/vaccine", badge: pendingVaccines > 0 ? `${pendingVaccines} 项待接种` : null, badgeColor: "text-amber" },
+              { icon: "💰", label: "记账", path: "/expense", badge: `本月 ¥${monthExpense.toLocaleString()}`, badgeColor: "text-gray-400" },
             ].map((item) => (
               <button
                 key={item.path}
@@ -93,6 +228,9 @@ export default function MyPage() {
                   {item.icon}
                 </div>
                 <div className="flex-1 text-sm font-medium text-gray-900">{item.label}</div>
+                {item.badge && (
+                  <div className={`text-xs ${item.badgeColor} mr-2`}>{item.badge}</div>
+                )}
                 <div className="text-gray-400">›</div>
               </button>
             ))}
@@ -100,22 +238,44 @@ export default function MyPage() {
         </div>
 
         <div className="mt-2.5 mx-3.5">
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">账号</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">家庭成员</div>
+            <button onClick={() => navigate("/family")} className="text-xs text-mint cursor-pointer border-none bg-transparent font-sans">管理 ›</button>
+          </div>
           <div className="bg-white rounded-card shadow-card overflow-hidden">
-            <div className="flex items-center py-3 px-3.5 border-b border-border">
-              <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center text-base flex-shrink-0 mr-[11px]">📱</div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-900">{user?.phone}</div>
-                <div className="text-[10px] text-gray-400">{user?.name || "未设置昵称"}</div>
+            {familyMembers.slice(0, 3).map((member) => (
+              <div key={member.id} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0">
+                <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">
+                  {member.avatar_emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900">{member.nickname}</div>
+                  <div className="text-[10px] text-gray-400">
+                    {member.user_id === user?.id ? "当前用户" : "家庭成员"}
+                  </div>
+                </div>
+                {member.user_id === user?.id && (
+                  <div className="text-[10px] text-mint bg-mint-light px-2 py-0.5 rounded-pill">当前</div>
+                )}
               </div>
-            </div>
+            ))}
             <button
-              onClick={handleLogout}
-              className="flex items-center justify-center w-full py-3 bg-transparent cursor-pointer border-none"
+              onClick={() => navigate("/family")}
+              className="flex items-center w-full py-3 px-3.5 bg-transparent cursor-pointer border-none text-left"
             >
-              <div className="text-sm font-medium text-danger">退出登录</div>
+              <div className="w-9 h-9 rounded-full bg-mint-light flex items-center justify-center text-lg flex-shrink-0">➕</div>
+              <div className="flex-1 text-sm font-medium text-mint">添加家庭成员</div>
             </button>
           </div>
+        </div>
+
+        <div className="mt-2.5 mx-3.5 mb-3.5">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center py-3 bg-white rounded-card shadow-card cursor-pointer border-none"
+          >
+            <div className="text-sm font-medium text-danger">退出登录</div>
+          </button>
         </div>
 
         <div className="h-3.5" />

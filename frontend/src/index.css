@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --header-grad: linear-gradient(160deg, #1A5848 0%, #4AB89A 60%, #6ECFB5 100%);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

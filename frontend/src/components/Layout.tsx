@@ -28,40 +28,38 @@ export function ScrollArea({ children, className = "" }: ScrollAreaProps) {
 }
 
 interface HeroProps {
-  variant: "mint" | "indigo" | "lavender" | "rose" | "amber" | "green" | "warm";
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-const heroGradients: Record<string, string> = {
-  mint: "from-[#1A5848] via-mint to-[#88D8C0]",
-  indigo: "from-[#263070] via-indigo to-[#7888CC]",
-  lavender: "from-[#5A3888] via-lavender to-[#C8B0E8]",
-  rose: "from-[#882040] via-rose to-[#F0A8B8]",
-  amber: "from-[#805010] via-amber to-[#F8D080]",
-  green: "from-[#1A5028] via-green to-[#A0D0A8]",
-  warm: "from-[#4A3828] via-[#8C6848] to-[#C0A080]",
-};
-
-export function Hero({ variant, children, className = "" }: HeroProps) {
+export function Hero({ children, className = "", style }: HeroProps) {
   return (
-    <div className={`bg-gradient-to-br ${heroGradients[variant]} px-[18px] pt-12 pb-5 flex-shrink-0 relative overflow-hidden ${className}`}>
+    <div
+      className={`px-[18px] pt-12 pb-5 flex-shrink-0 relative overflow-hidden ${className}`}
+      style={{ background: "var(--header-grad)", ...style }}
+    >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_76%_8%,rgba(255,255,255,.18)_0%,transparent_55%)]" />
       {children}
     </div>
   );
 }
 
-interface StatCardProps {
+interface HeroStatCardProps {
   value: string;
   label: string;
+  suffix?: string;
+  className?: string;
 }
 
-export function StatCard({ value, label }: StatCardProps) {
+export function HeroStatCard({ value, label, suffix, className = "" }: HeroStatCardProps) {
   return (
-    <div className="bg-white/18 rounded-[10px] py-[9px] px-2.5 text-center flex-1">
-      <div className="font-serif text-lg font-bold text-white leading-none">{value}</div>
-      <div className="text-[9px] text-white/72 mt-0.5">{label}</div>
+    <div className={`bg-white/20 rounded-xl p-2 text-center flex-1 ${className}`}>
+      <div className="font-serif text-lg font-bold text-white leading-none">
+        {value}
+        {suffix && <span className="text-sm font-normal text-white/70 ml-0.5">{suffix}</span>}
+      </div>
+      <div className="text-[9px] text-white/80 mt-0.5">{label}</div>
     </div>
   );
 }
