@@ -3,7 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --header-grad: linear-gradient(160deg, #1A5848 0%, #4AB89A 60%, #6ECFB5 100%);
+  --header-grad: linear-gradient(135deg, #A8EDCD 0%, #5BC4A0 100%);
+  --color-mint: #5BC4A0;
+  --color-coral: #FF8C69;
+  --page-bg: #F7FAF8;
 }
 
 *, *::before, *::after {
@@ -18,8 +21,8 @@ html, body {
 }
 
 body {
-  font-family: "Noto Sans SC", sans-serif;
-  background: #FBF8F2;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--page-bg);
 }
 
 #root {
@@ -28,5 +31,31 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #FBF8F2;
+  background: var(--page-bg);
+}
+
+.font-tabular {
+  font-family: "DIN Alternate", "Arial Narrow", "Roboto Condensed", ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.mint-hero-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .18;
+  background-image:
+    radial-gradient(circle at 14% 20%, rgba(255,255,255,.38) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 82% 16%, rgba(255,255,255,.26) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 38% 78%, rgba(37,121,92,.16) 0 1px, transparent 1.5px);
+  background-size: 18px 18px, 22px 22px, 26px 26px;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

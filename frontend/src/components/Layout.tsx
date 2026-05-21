@@ -36,10 +36,10 @@ interface HeroProps {
 export function Hero({ children, className = "", style }: HeroProps) {
   return (
     <div
-      className={`px-[18px] pt-12 pb-5 flex-shrink-0 relative overflow-hidden ${className}`}
+      className={`mint-hero-noise px-[18px] pt-12 pb-6 flex-shrink-0 relative overflow-hidden rounded-b-[24px] ${className}`}
       style={{ background: "var(--header-grad)", ...style }}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_76%_8%,rgba(255,255,255,.18)_0%,transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_78%_4%,rgba(255,255,255,.32)_0%,transparent_52%)]" />
       {children}
     </div>
   );
@@ -54,12 +54,12 @@ interface HeroStatCardProps {
 
 export function HeroStatCard({ value, label, suffix, className = "" }: HeroStatCardProps) {
   return (
-    <div className={`bg-white/20 rounded-xl p-2 text-center flex-1 ${className}`}>
-      <div className="font-serif text-lg font-bold text-white leading-none">
+    <div className={`bg-white/24 rounded-2xl p-3 text-center flex-1 border border-white/24 backdrop-blur-md ${className}`}>
+      <div className="font-tabular text-2xl font-bold text-white leading-none">
         {value}
         {suffix && <span className="text-sm font-normal text-white/70 ml-0.5">{suffix}</span>}
       </div>
-      <div className="text-[9px] text-white/80 mt-0.5">{label}</div>
+      <div className="text-[11px] text-white/80 mt-1">{label}</div>
     </div>
   );
 }

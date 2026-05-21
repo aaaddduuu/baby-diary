@@ -4,13 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: "#FBF8F2",
-        border: "#E2D9C8",
+        cream: "#F7FAF8",
+        border: "#E8EFEA",
         mint: {
-          DEFAULT: "#4AB89A",
-          light: "#E8F7F3",
-          dark: "#2D8A70",
+          DEFAULT: "#5BC4A0",
+          light: "#EAF8F2",
+          dark: "#2FA47E",
         },
+        coral: "#FF8C69",
         amber: {
           DEFAULT: "#E8A030",
           light: "#FEF4E0",
@@ -57,8 +58,8 @@ export default {
         },
       },
       fontFamily: {
-        serif: ['"Noto Serif SC"', "serif"],
-        sans: ['"Noto Sans SC"', "sans-serif"],
+        serif: ['"PingFang SC"', '"Noto Sans SC"', "sans-serif"],
+        sans: ['"PingFang SC"', '"Microsoft YaHei"', '"Noto Sans SC"', "system-ui", "sans-serif"],
       },
       borderRadius: {
         card: "16px",
@@ -66,8 +67,8 @@ export default {
         pill: "999px",
       },
       boxShadow: {
-        card: "0 2px 14px rgba(50,35,10,.07)",
-        "card-lg": "0 6px 28px rgba(50,35,10,.13)",
+        card: "0 2px 12px rgba(0,0,0,.06)",
+        "card-lg": "0 8px 30px rgba(43,116,91,.14)",
       },
     },
   },
