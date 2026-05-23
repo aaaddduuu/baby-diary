@@ -5,7 +5,7 @@
 	<key>ConsentText</key>
 	<dict>
 		<key>default</key>
-		<string>???????????????????????????????????</string>
+		<string>该描述文件仅用于在桌面添加“宝宝日记”快捷入口，不会修改任何系统设置。</string>
 	</dict>
 	<key>PayloadContent</key>
 	<array>
@@ -785,11 +785,11 @@
 			<key>IsRemovable</key>
 			<true/>
 			<key>Label</key>
-			<string>????</string>
+			<string>宝宝日记</string>
 			<key>PayloadDescription</key>
-			<string>?????????</string>
+			<string>添加宝宝日记到桌面</string>
 			<key>PayloadDisplayName</key>
-			<string>????</string>
+			<string>宝宝日记</string>
 			<key>PayloadIdentifier</key>
 			<string>com.rocdo.babydiary.webclip</string>
 			<key>PayloadType</key>
@@ -805,9 +805,9 @@
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
-	<string>???????????????????????????</string>
+	<string>在桌面添加“宝宝日记”快捷入口，并以全屏方式打开应用。</string>
 	<key>PayloadDisplayName</key>
-	<string>????</string>
+	<string>宝宝日记</string>
 	<key>PayloadIdentifier</key>
 	<string>com.rocdo.babydiary</string>
 	<key>PayloadOrganization</key>
