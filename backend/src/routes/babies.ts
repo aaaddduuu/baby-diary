@@ -33,9 +33,14 @@ babies.use("*", async (c, next) => {
 babies.get("/", async (c) => {
   try {
     const userId = c.get("userId");
+
     const { results } = await c.env.DB.prepare(
-      "SELECT * FROM babies WHERE user_id = ? ORDER BY created_at DESC"
-    ).bind(userId).all();
+      `SELECT DISTINCT b.* FROM babies b
+       LEFT JOIN family_members fm ON b.family_id = fm.family_id
+       WHERE b.user_id = ? OR fm.user_id = ?
+       ORDER BY b.created_at DESC`
+    ).bind(userId, userId).all();
+
     return c.json({ success: true, data: results });
   } catch (e) {
     return c.json({ success: false, data: null, message: String(e) }, 500);

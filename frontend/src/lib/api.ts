@@ -1,4 +1,4 @@
-export interface ApiResponse<T = unknown> {
+﻿export interface ApiResponse<T = unknown> {
   success: boolean;
   data: T;
   message?: string;
@@ -31,16 +31,26 @@ export interface Expense {
 export interface BabyRecord {
   id: number;
   baby_id: number;
+  user_id: number | null;
   member_id: number | null;
   type: string;
   data: string;
   recorded_at: string;
   created_at: string;
+  user_name?: string | null;
+  member_nickname?: string | null;
+  avatar_emoji?: string | null;
 }
 
 export interface AuthData {
   token: string;
   user: { id: number; phone: string; name: string | null };
+}
+
+export interface UserProfile {
+  id: number;
+  phone: string;
+  name: string | null;
 }
 
 export interface FamilyMember {
@@ -62,7 +72,24 @@ export interface Family {
   created_at: string;
 }
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+export interface GrowthRecord {
+  id: number;
+  weight: number | null;
+  height: number | null;
+  head_circumference: number | null;
+  measured_at: string;
+}
+
+export interface VaccineRecord {
+  id: number;
+  name: string;
+  status: "planned" | "completed";
+  date: string | null;
+  hospital: string | null;
+  is_custom: number;
+}
+
+const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
   const token = localStorage.getItem("token");
@@ -78,11 +105,23 @@ async function request<T>(url: string, options?: RequestInit): Promise<ApiRespon
       ...(options?.headers || {}),
     },
   });
+
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    window.location.href = "/auth";
+    throw new Error("登录已过期");
+  }
+
   const json: ApiResponse<T> = await res.json();
   if (!json.success) {
     throw new Error(json.message || "请求失败");
   }
   return json;
+}
+
+async function requestData<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await request<T>(url, options);
+  return res.data;
 }
 
 export async function login(phone: string, password: string): Promise<AuthData> {
@@ -103,6 +142,14 @@ export async function register(phone: string, password: string, name?: string): 
 
 export async function getMe(): Promise<unknown> {
   const res = await request<unknown>("/auth/me");
+  return res.data;
+}
+
+export async function updateProfile(data: { name: string }): Promise<UserProfile> {
+  const res = await request<UserProfile>("/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
   return res.data;
 }
 
@@ -185,6 +232,106 @@ export async function createRecord(data: {
   return res.data;
 }
 
+export async function fetchRecordById(recordId: number): Promise<BabyRecord> {
+  return requestData<BabyRecord>(`/records/${recordId}`);
+}
+
+export async function updateRecord(
+  recordId: number,
+  data: {
+    type: string;
+    data: Record<string, unknown>;
+  },
+): Promise<BabyRecord> {
+  return requestData<BabyRecord>(`/records/${recordId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchGrowthRecords(babyId: number): Promise<GrowthRecord[]> {
+  return requestData<GrowthRecord[]>(`/babies/${babyId}/growth`);
+}
+
+export async function createGrowthRecord(
+  babyId: number,
+  data: {
+    weight: number | null;
+    height: number | null;
+    head_circumference: number | null;
+    measured_at: string;
+  },
+): Promise<GrowthRecord> {
+  return requestData<GrowthRecord>(`/babies/${babyId}/growth`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateGrowthRecord(
+  babyId: number,
+  recordId: number,
+  data: {
+    weight: number | null;
+    height: number | null;
+    head_circumference: number | null;
+    measured_at: string;
+  },
+): Promise<GrowthRecord> {
+  return requestData<GrowthRecord>(`/babies/${babyId}/growth/${recordId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteGrowthRecord(babyId: number, recordId: number): Promise<{ id?: number }> {
+  return requestData<{ id?: number }>(`/babies/${babyId}/growth/${recordId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchVaccines(babyId: number): Promise<VaccineRecord[]> {
+  return requestData<VaccineRecord[]>(`/babies/${babyId}/vaccines`);
+}
+
+export async function createVaccine(
+  babyId: number,
+  data: {
+    name: string;
+    status: "planned" | "completed";
+    date: string | null;
+    hospital: string | null;
+    is_custom: boolean | number;
+  },
+): Promise<VaccineRecord> {
+  return requestData<VaccineRecord>(`/babies/${babyId}/vaccines`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateVaccine(
+  babyId: number,
+  vaccineId: number,
+  data: {
+    name?: string;
+    status?: "planned" | "completed";
+    date?: string | null;
+    hospital?: string | null;
+  },
+): Promise<VaccineRecord> {
+  return requestData<VaccineRecord>(`/babies/${babyId}/vaccines/${vaccineId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteVaccine(babyId: number, vaccineId: number): Promise<{ id?: number }> {
+  return requestData<{ id?: number }>(`/babies/${babyId}/vaccines/${vaccineId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchFamily(): Promise<{ family: Family | null; members: FamilyMember[] }> {
   const res = await request<{ family: Family | null; members: FamilyMember[] }>("/family");
   return res.data;
@@ -230,3 +377,4 @@ export async function removeFamilyMember(memberId: number): Promise<{ id: number
   });
   return res.data;
 }
+

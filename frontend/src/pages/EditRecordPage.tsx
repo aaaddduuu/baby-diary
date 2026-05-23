@@ -1,57 +1,130 @@
-import { useState, useEffect } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Layout, { ScrollArea } from "../components/Layout";
 import Header from "../components/Header";
+import Layout, { ScrollArea, SectionCard } from "../components/Layout";
 import NumberKeyboard from "../components/NumberKeyboard";
 import SleepTimePicker from "../components/SleepTimePicker";
 import { useBaby } from "../lib/BabyContext";
+import { fetchRecordById, updateRecord } from "../lib/api";
+import {
+  calcDuration,
+  DIAPER_COLORS,
+  DIAPER_TYPES,
+  FEEDING_SIDES,
+  FORMULA_PRESETS,
+  formatDateTimeDisplay,
+  getDefaultTime,
+  isEndBeforeStart,
+  parseDateTime,
+  RECORD_TYPES,
+  toLocalDateTimeString,
+} from "./recordFormShared";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
-
-const RECORD_TYPES = [
-  { type: "breast_milk", icon: "🤱", label: "母乳" },
-  { type: "formula", icon: "🍼", label: "配方奶" },
-  { type: "sleep", icon: "💤", label: "睡眠" },
-  { type: "diaper", icon: "💧", label: "尿布" },
-];
-
-const FORMULA_PRESETS = [60, 90, 120, 150, 180, 210];
-
-function getDefaultTime(): { date: string; hour: number; minute: number } {
-  const now = new Date();
-  const roundedMinute = Math.ceil(now.getMinutes() / 5) * 5;
-  return {
-    date: now.toISOString().slice(0, 10),
-    hour: now.getHours(),
-    minute: roundedMinute >= 60 ? 0 : roundedMinute,
-  };
+function SectionLabel({ children }: { children: string }) {
+  return <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">{children}</div>;
 }
 
-function formatDateTimeDisplay(dt: { date: string; hour: number; minute: number }): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-
-  let dateLabel: string;
-  if (dt.date === today) {
-    dateLabel = "今天";
-  } else if (dt.date === yesterday) {
-    dateLabel = "昨天";
-  } else {
-    const [, m, d] = dt.date.split("-");
-    dateLabel = `${Number(m)}月${Number(d)}日`;
-  }
-
-  const timeLabel = `${String(dt.hour).padStart(2, "0")}:${String(dt.minute).padStart(2, "0")}`;
-  return `${dateLabel}  ${timeLabel}`;
+function SelectorChip({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-2 rounded-[20px] border px-3 py-3 text-center transition-all ${
+        active
+          ? "border-[#5BC4A0] bg-[#F0FAF6] shadow-[0_10px_24px_rgba(74,184,154,.14)]"
+          : "border-white/70 bg-white/80"
+      }`}
+    >
+      <span
+        className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl ${
+          active ? "bg-[#DDF5EA]" : "bg-[#F6F3EA]"
+        }`}
+      >
+        {icon}
+      </span>
+      <span className={`text-sm font-semibold ${active ? "text-[#1A5C3A]" : "text-[#526258]"}`}>{label}</span>
+    </button>
+  );
 }
 
-function parseDateTime(isoStr: string): { date: string; hour: number; minute: number } {
-  const d = new Date(isoStr);
-  return {
-    date: isoStr.slice(0, 10),
-    hour: d.getHours(),
-    minute: d.getMinutes(),
-  };
+function MiniCardButton({
+  active,
+  label,
+  icon,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  icon?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition-all ${
+        active
+          ? "border-[#5BC4A0] bg-[#F0FAF6] text-[#1A5C3A] shadow-[0_8px_20px_rgba(74,184,154,.12)]"
+          : "border-[#E8E1D5] bg-white text-[#526258]"
+      }`}
+    >
+      {icon ? <span className="text-base">{icon}</span> : null}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function AmountAdjuster({
+  label,
+  value,
+  onDecrease,
+  onIncrease,
+  suffix = "分钟",
+}: {
+  label: string;
+  value: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  suffix?: string;
+}) {
+  return (
+    <div className="rounded-[22px] bg-white p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between">
+        <SectionLabel>{label}</SectionLabel>
+        <div className="text-xs text-[#7A8B80]">{suffix}</div>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onDecrease}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F4F1E9] text-xl font-bold text-[#607066]"
+        >
+          -
+        </button>
+        <div className="flex-1 text-center">
+          <div className="font-tabular text-[34px] font-bold leading-none text-[#21382E]">{value}</div>
+          <div className="mt-1 text-xs text-[#7A8B80]">{suffix}</div>
+        </div>
+        <button
+          type="button"
+          onClick={onIncrease}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[#DDF5EA] text-xl font-bold text-[#1A5C3A]"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function EditRecordPage() {
@@ -82,39 +155,51 @@ export default function EditRecordPage() {
 
   useEffect(() => {
     if (!id) return;
+
     setFetchLoading(true);
-    fetch(`${API_BASE}/records/${id}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          const record = data.data;
-          setType(record.type);
-          const recordData = JSON.parse(record.data);
+    fetchRecordById(Number(id))
+      .then((record) => {
+        setType(record.type);
+        const recordData = JSON.parse(record.data);
 
-          if (record.type === "breast_milk") {
-            setBreastSide(recordData.side || "both");
-            setBreastLeft(recordData.leftMin || 0);
-            setBreastRight(recordData.rightMin || 0);
-          } else if (record.type === "formula") {
-            setFormulaMl(recordData.ml || 120);
-            setFormulaPreset(FORMULA_PRESETS.includes(recordData.ml) ? recordData.ml : null);
-          } else if (record.type === "sleep") {
-            setSleepStart(parseDateTime(recordData.start));
-            setSleepEnd(parseDateTime(recordData.end));
-            setSleeping(recordData.sleeping || false);
-          } else if (record.type === "diaper") {
-            setDiaperType(recordData.diaper_type || "wet");
-            setDiaperColor(recordData.color || "yellow");
-          }
+        if (record.type === "breast_milk") {
+          setBreastSide(recordData.side || "both");
+          setBreastLeft(recordData.leftMin || 0);
+          setBreastRight(recordData.rightMin || 0);
+        } else if (record.type === "formula") {
+          setFormulaMl(recordData.ml || 120);
+          setFormulaPreset(FORMULA_PRESETS.includes(recordData.ml) ? recordData.ml : null);
+        } else if (record.type === "sleep") {
+          setSleepStart(parseDateTime(recordData.start));
+          setSleepEnd(parseDateTime(recordData.end || recordData.start));
+          setSleeping(recordData.sleeping || false);
+        } else if (record.type === "diaper") {
+          setDiaperType(recordData.diaper_type || "wet");
+          setDiaperColor(recordData.color || "yellow");
+        }
 
-          if (recordData.note) setNote(recordData.note);
+        if (recordData.note) {
+          setNote(recordData.note);
         }
       })
-      .catch(() => setError("加载记录失败"))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载记录失败"))
       .finally(() => setFetchLoading(false));
   }, [id]);
+
+  const sleepDuration = useMemo(() => {
+    if (sleeping) return null;
+    return calcDuration(sleepStart, sleepEnd);
+  }, [sleepEnd, sleepStart, sleeping]);
+
+  const isInvalidTime = useMemo(() => {
+    if (sleeping) return false;
+    return isEndBeforeStart(sleepStart, sleepEnd);
+  }, [sleepEnd, sleepStart, sleeping]);
+
+  const canSubmit = useMemo(() => {
+    if (type === "sleep" && !sleeping && isInvalidTime) return false;
+    return true;
+  }, [isInvalidTime, sleeping, type]);
 
   const handleFormulaPreset = (ml: number) => {
     setFormulaMl(ml);
@@ -122,9 +207,18 @@ export default function EditRecordPage() {
   };
 
   const handleFormulaAdjust = (delta: number) => {
-    const newVal = Math.max(0, Math.min(999, formulaMl + delta));
-    setFormulaMl(newVal);
-    setFormulaPreset(FORMULA_PRESETS.includes(newVal) ? newVal : null);
+    const newValue = Math.max(0, Math.min(999, formulaMl + delta));
+    setFormulaMl(newValue);
+    setFormulaPreset(FORMULA_PRESETS.includes(newValue) ? newValue : null);
+  };
+
+  const handleFormulaKeyboardConfirm = (value: string) => {
+    const amount = Number(value);
+    if (amount > 0) {
+      setFormulaMl(amount);
+      setFormulaPreset(FORMULA_PRESETS.includes(amount) ? amount : null);
+    }
+    setShowFormulaKeyboard(false);
   };
 
   const handleSubmit = async () => {
@@ -145,30 +239,24 @@ export default function EditRecordPage() {
     } else if (type === "formula") {
       data = { ml: formulaMl, note };
     } else if (type === "sleep") {
-      const startStr = `${sleepStart.date}T${String(sleepStart.hour).padStart(2, "0")}:${String(sleepStart.minute).padStart(2, "0")}:00`;
-      const endStr = sleeping ? null : `${sleepEnd.date}T${String(sleepEnd.hour).padStart(2, "0")}:${String(sleepEnd.minute).padStart(2, "0")}:00`;
+      if (isInvalidTime) {
+        setLoading(false);
+        setError("结束时间不能早于开始时间。");
+        return;
+      }
+
+      const startStr = toLocalDateTimeString(sleepStart);
+      const endStr = sleeping ? null : toLocalDateTimeString(sleepEnd);
       data = { start: startStr, end: endStr, sleeping, note };
     } else if (type === "diaper") {
       data = { diaper_type: diaperType, color: diaperColor, note };
     }
 
     try {
-      const res = await fetch(`${API_BASE}/records/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ type, data }),
-      });
-      const result = await res.json();
-      if (result.success) {
-        navigate("/record");
-      } else {
-        setError(result.message || "更新失败");
-      }
-    } catch {
-      setError("更新失败");
+      await updateRecord(Number(id), { type, data });
+      navigate("/record");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setLoading(false);
     }
@@ -176,219 +264,301 @@ export default function EditRecordPage() {
 
   if (fetchLoading) {
     return (
-      <Layout>
-        <Header title="编辑记录" variant="light" back />
-        <div className="flex items-center justify-center flex-1">
-          <div className="text-gray-400 text-sm">加载中...</div>
+      <Layout className="secondary-page">
+        <Header title="编辑记录" subtitle="同步调整这次记录" variant="hero" back />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="rounded-[20px] bg-white/90 px-5 py-4 text-sm text-[#607066] shadow-soft">
+            {"加载中…"}
+          </div>
         </div>
       </Layout>
     );
   }
 
   return (
-    <Layout>
-      <Header title="编辑记录" variant="light" back />
-      <ScrollArea>
-        <div className="p-4">
-          {error && (
-            <div className="bg-danger-light rounded-sm p-3 text-sm text-danger mb-3.5">{error}</div>
-          )}
+    <Layout className="secondary-page">
+      <Header
+        title="编辑记录"
+        subtitle="保留原有内容，只改需要的部分"
+        variant="hero"
+        back
+      />
 
-          <div className="mb-4">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">记录类型</div>
-            <div className="grid grid-cols-2 gap-2">
-              {RECORD_TYPES.map((rt) => (
-                <button
-                  key={rt.type}
-                  onClick={() => setType(rt.type)}
-                  className={`h-[72px] rounded-sm text-center cursor-pointer border-2 transition-all duration-150 ${
-                    type === rt.type
-                      ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark"
-                      : "bg-gray-100 border-transparent text-gray-600"
-                  }`}
-                >
-                  <div className="text-[28px] mb-0.5">{rt.icon}</div>
-                  <div className="text-[13px] font-medium">{rt.label}</div>
-                </button>
+      <ScrollArea className="pb-28">
+        <div className="space-y-4 px-4 pb-6 pt-4">
+          {error ? (
+            <div className="rounded-[20px] border border-[#F3C6C6] bg-[#FFF4F4] px-4 py-3 text-sm text-danger">
+              {error}
+            </div>
+          ) : null}
+
+          <SectionCard className="p-4">
+            <div className="mb-3">
+              <div className="panel-title text-[17px]">记录类型</div>
+              <div className="panel-note mt-1">和新增页使用同一套卡片风格</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {RECORD_TYPES.map((recordType) => (
+                <SelectorChip
+                  key={recordType.type}
+                  active={type === recordType.type}
+                  icon={recordType.icon}
+                  label={recordType.label}
+                  onClick={() => setType(recordType.type)}
+                />
               ))}
             </div>
-          </div>
+          </SectionCard>
 
-          <div className="transition-all duration-150" style={{ opacity: 1, transform: "translateY(0)" }}>
-            {type === "breast_milk" && (
-              <div className="space-y-3.5">
+          {type === "breast_milk" ? (
+            <>
+              <SectionCard className="p-4">
+                <div className="mb-3">
+                  <div className="panel-title text-[17px]">喂养方式</div>
+                  <div className="panel-note mt-1">左右侧选择保持一致</div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {FEEDING_SIDES.map((option) => (
+                    <MiniCardButton
+                      key={option.value}
+                      active={breastSide === option.value}
+                      icon={option.icon}
+                      label={option.label}
+                      onClick={() => setBreastSide(option.value)}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
+
+              <SectionCard className="space-y-3 p-4">
                 <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">喂养方式</div>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "left" as const, label: "左侧" },
-                      { value: "right" as const, label: "右侧" },
-                      { value: "both" as const, label: "双侧" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setBreastSide(opt.value)}
-                        className={`flex-1 h-10 rounded-sm text-sm font-semibold cursor-pointer border-none transition-all ${
-                          breastSide === opt.value ? "bg-[#4AB89A] text-white" : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="panel-title text-[17px]">时长</div>
+                  <div className="panel-note mt-1">在干净的白卡中调整分钟数</div>
                 </div>
                 {(breastSide === "left" || breastSide === "both") && (
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">左侧（分钟）</div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setBreastLeft(Math.max(0, breastLeft - 1))} className="w-10 h-10 rounded-full bg-gray-100 text-xl font-bold text-gray-600 border-none cursor-pointer">-</button>
-                      <div className="flex-1 text-center font-serif text-3xl font-bold text-gray-900">{breastLeft}</div>
-                      <button onClick={() => setBreastLeft(Math.min(60, breastLeft + 1))} className="w-10 h-10 rounded-full bg-mint-light text-xl font-bold text-mint-dark border-none cursor-pointer">+</button>
-                    </div>
-                  </div>
+                  <AmountAdjuster
+                    label="左侧"
+                    value={breastLeft}
+                    onDecrease={() => setBreastLeft(Math.max(0, breastLeft - 1))}
+                    onIncrease={() => setBreastLeft(Math.min(60, breastLeft + 1))}
+                  />
                 )}
                 {(breastSide === "right" || breastSide === "both") && (
-                  <div>
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">右侧（分钟）</div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => setBreastRight(Math.max(0, breastRight - 1))} className="w-10 h-10 rounded-full bg-gray-100 text-xl font-bold text-gray-600 border-none cursor-pointer">-</button>
-                      <div className="flex-1 text-center font-serif text-3xl font-bold text-gray-900">{breastRight}</div>
-                      <button onClick={() => setBreastRight(Math.min(60, breastRight + 1))} className="w-10 h-10 rounded-full bg-mint-light text-xl font-bold text-mint-dark border-none cursor-pointer">+</button>
-                    </div>
-                  </div>
+                  <AmountAdjuster
+                    label="右侧"
+                    value={breastRight}
+                    onDecrease={() => setBreastRight(Math.max(0, breastRight - 1))}
+                    onIncrease={() => setBreastRight(Math.min(60, breastRight + 1))}
+                  />
                 )}
-              </div>
-            )}
+              </SectionCard>
+            </>
+          ) : null}
 
-            {type === "formula" && (
-              <div className="space-y-3.5">
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">常用奶量</div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                    {FORMULA_PRESETS.map((ml) => (
-                      <button
-                        key={ml}
-                        onClick={() => handleFormulaPreset(ml)}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-pill text-sm font-medium cursor-pointer border transition-all ${
-                          formulaPreset === ml ? "bg-[#4AB89A] text-white border-[#4AB89A]" : "bg-white text-[#4AB89A] border-[#4AB89A]"
-                        }`}
-                      >
-                        {ml}ml
-                      </button>
-                    ))}
+          {type === "formula" ? (
+            <>
+              <SectionCard className="p-4">
+                <div className="mb-3">
+                  <div className="panel-title text-[17px]">常用奶量</div>
+                  <div className="panel-note mt-1">快速切换常用值，必要时再自定义</div>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {FORMULA_PRESETS.map((ml) => (
                     <button
-                      onClick={() => setShowFormulaKeyboard(true)}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-pill text-sm font-medium cursor-pointer bg-gray-100 text-gray-600 border border-gray-200"
+                      key={ml}
+                      type="button"
+                      onClick={() => handleFormulaPreset(ml)}
+                      className={`flex-shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                        formulaPreset === ml
+                          ? "border-[#5BC4A0] bg-[#5BC4A0] text-white"
+                          : "border-[#CBE8DA] bg-white text-[#1A5C3A]"
+                      }`}
                     >
-                      自定义
+                      {ml} ml
                     </button>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">奶量（ml）</div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => handleFormulaAdjust(-10)} className="w-10 h-10 rounded-full bg-gray-100 text-xl font-bold text-gray-600 border-none cursor-pointer">-</button>
-                    <div className="flex-1 text-center font-serif text-3xl font-bold text-gray-900">{formulaMl} ml</div>
-                    <button onClick={() => handleFormulaAdjust(10)} className="w-10 h-10 rounded-full bg-mint-light text-xl font-bold text-mint-dark border-none cursor-pointer">+</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {type === "sleep" && (
-              <div className="space-y-3.5">
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">开始时间</div>
-                  <button onClick={() => setShowPicker("start")} className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-gray-900 text-left cursor-pointer">
-                    {formatDateTimeDisplay(sleepStart)}
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowFormulaKeyboard(true)}
+                    className="flex-shrink-0 rounded-full border border-[#E3DDD1] bg-[#F6F3EA] px-4 py-2 text-sm font-semibold text-[#526258]"
+                  >
+                    {"自定义"}
                   </button>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">结束时间</div>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
-                      <input type="checkbox" checked={sleeping} onChange={(e) => setSleeping(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-mint focus:ring-mint" />
-                      <span className="text-xs text-gray-500">睡眠中</span>
+              </SectionCard>
+
+              <SectionCard className="p-4">
+                <div className="mb-3">
+                  <div className="panel-title text-[17px]">奶量</div>
+                  <div className="panel-note mt-1">继续用原来的加减逻辑</div>
+                </div>
+                <AmountAdjuster
+                  label="配方奶"
+                  value={formulaMl}
+                  suffix="ml"
+                  onDecrease={() => handleFormulaAdjust(-10)}
+                  onIncrease={() => handleFormulaAdjust(10)}
+                />
+              </SectionCard>
+            </>
+          ) : null}
+
+          {type === "sleep" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">睡眠时间</div>
+                <div className="panel-note mt-1">时间输入集中在一组白卡里，编辑时更直观</div>
+              </div>
+
+              <div className="space-y-3 rounded-[22px] bg-white p-4 shadow-soft">
+                <div className="space-y-2">
+                  <SectionLabel>{"开始时间"}</SectionLabel>
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker("start")}
+                    className="flex w-full items-center justify-between rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 py-3 text-left text-sm font-medium text-[#21382E]"
+                  >
+                    <span>{formatDateTimeDisplay(sleepStart)}</span>
+                    <span className="text-[#7A8B80]">编辑</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <SectionLabel>{"结束时间"}</SectionLabel>
+                    <label className="flex items-center gap-2 text-sm text-[#526258]">
+                      <input
+                        type="checkbox"
+                        checked={sleeping}
+                        onChange={(event) => setSleeping(event.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-mint focus:ring-mint"
+                      />
+                      <span>{"睡眠中"}</span>
                     </label>
                   </div>
                   <button
+                    type="button"
                     onClick={() => !sleeping && setShowPicker("end")}
                     disabled={sleeping}
-                    className={`w-full h-11 border-[1.5px] border-border rounded-sm px-3.5 text-sm text-left cursor-pointer transition-all ${
-                      sleeping ? "bg-gray-50 text-gray-400 cursor-not-allowed" : "bg-gray-100 text-gray-900"
+                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all ${
+                      sleeping
+                        ? "cursor-not-allowed border-[#EEE8DE] bg-[#F5F2EB] text-[#A39A8C]"
+                        : "border-[#E8E1D5] bg-[#FBF9F3] text-[#21382E]"
                     }`}
                   >
-                    {sleeping ? "睡眠中..." : formatDateTimeDisplay(sleepEnd)}
+                    <span>{sleeping ? "睡眠中…" : formatDateTimeDisplay(sleepEnd)}</span>
+                    <span className="text-[#7A8B80]">{sleeping ? "" : "编辑"}</span>
                   </button>
                 </div>
               </div>
-            )}
 
-            {type === "diaper" && (
-              <div className="space-y-3.5">
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">类型</div>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "wet", label: "小便 💧" },
-                      { value: "dirty", label: "大便 💩" },
-                      { value: "both", label: "都有 🔄" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setDiaperType(opt.value)}
-                        className={`flex-1 h-10 rounded-sm text-sm font-semibold cursor-pointer border-2 transition-all ${
-                          diaperType === opt.value ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark" : "bg-gray-100 border-transparent text-gray-600"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+              {sleepDuration ? (
+                <div className="rounded-2xl bg-[#EEF8F3] px-4 py-3 text-center text-sm font-semibold text-[#1A5C3A]">
+                  {sleepDuration}
                 </div>
-                <div>
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">颜色</div>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "yellow", label: "黄色" },
-                      { value: "green", label: "绿色" },
-                      { value: "brown", label: "棕色" },
-                      { value: "other", label: "其他" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setDiaperColor(opt.value)}
-                        className={`flex-1 h-9 rounded-sm text-xs font-semibold cursor-pointer border-2 transition-all ${
-                          diaperColor === opt.value ? "bg-[#F0FAF6] border-[#4AB89A] text-mint-dark" : "bg-gray-100 border-transparent text-gray-600"
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+              ) : null}
 
-          <div className="mt-4">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">备注（选填）</div>
-            <textarea
-              className="w-full h-20 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 py-2.5 text-sm font-sans text-gray-900 outline-none focus:border-mint resize-none"
-              placeholder="添加备注..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
+              {isInvalidTime && !sleeping ? (
+                <div className="rounded-2xl border border-[#F3C6C6] bg-[#FFF4F4] px-4 py-3 text-sm text-danger">
+                  {"结束时间不能早于开始时间。"}
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          {type === "diaper" ? (
+            <>
+              <SectionCard className="p-4">
+                <div className="mb-3">
+                  <div className="panel-title text-[17px]">类型</div>
+                  <div className="panel-note mt-1">和记录页主流程保持统一的卡片语言</div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {DIAPER_TYPES.map((option) => (
+                    <MiniCardButton
+                      key={option.value}
+                      active={diaperType === option.value}
+                      icon={option.icon}
+                      label={option.label}
+                      onClick={() => setDiaperType(option.value)}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
+
+              <SectionCard className="space-y-3 p-4">
+                <div>
+                  <div className="panel-title text-[17px]">颜色</div>
+                  <div className="panel-note mt-1">颜色状态卡更接近主页面的视觉节奏</div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {DIAPER_COLORS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setDiaperColor(option.value)}
+                      className={`relative flex items-center gap-3 rounded-[20px] border px-4 py-3 text-left transition-all ${
+                        diaperColor === option.value
+                          ? "border-[#5BC4A0] bg-[#F0FAF6] shadow-[0_8px_20px_rgba(74,184,154,.12)]"
+                          : "border-[#E8E1D5] bg-white"
+                      }`}
+                    >
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border border-white/70"
+                        style={{ backgroundColor: option.dot }}
+                      />
+                      <span className="flex-1 text-sm font-semibold text-[#21382E]">{option.label}</span>
+                      {option.badge ? (
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                            option.badge === "留意"
+                              ? "bg-[#FFF1D9] text-[#B86B16]"
+                              : "bg-[#E6F5EC] text-[#2B7A53]"
+                          }`}
+                        >
+                          {option.badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+
+                {diaperColor === "green" ? (
+                  <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF7E7] px-4 py-3 text-sm leading-6 text-[#8A6220]">
+                    {
+                      "绿色便便可能和饮食或肠胃状态有关，如果持续出现，建议结合宝宝状态留意观察。"
+                    }
+                  </div>
+                ) : null}
+              </SectionCard>
+            </>
+          ) : null}
+
+          <SectionCard className="p-4">
+            <div className="mb-3">
+              <div className="panel-title text-[17px]">备注</div>
+              <div className="panel-note mt-1">只改界面，不改原有备注提交逻辑</div>
+            </div>
+            <div className="rounded-[22px] bg-white p-4 shadow-soft">
+              <textarea
+                className="h-24 w-full resize-none border-none bg-transparent text-sm leading-6 text-[#21382E] outline-none placeholder:text-[#9A9388]"
+                placeholder="添加备注…"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </div>
+          </SectionCard>
         </div>
       </ScrollArea>
-      <div className="p-4 bg-white border-t border-border flex-shrink-0">
+
+      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-white/60 bg-[rgba(248,247,239,.96)] px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         <button
+          type="button"
           onClick={handleSubmit}
-          disabled={loading}
-          className="w-full h-12 rounded-pill text-base font-semibold text-white bg-gradient-to-br from-mint to-mint-dark shadow-[0_4px_14px_rgba(74,184,154,.3)] border-none cursor-pointer disabled:opacity-50"
+          disabled={loading || !canSubmit}
+          className="h-12 w-full rounded-full bg-gradient-to-r from-[#4AB89A] to-[#2F9B73] text-base font-semibold text-white shadow-[0_12px_28px_rgba(47,155,115,.28)] disabled:opacity-50"
         >
-          {loading ? "更新中..." : "更新记录"}
+          {loading ? "更新中…" : "更新记录"}
         </button>
       </div>
 
@@ -396,20 +566,26 @@ export default function EditRecordPage() {
         visible={showPicker === "start"}
         title="选择开始时间"
         value={sleepStart}
-        onConfirm={(val) => { setSleepStart(val); setShowPicker(null); }}
+        onConfirm={(value) => {
+          setSleepStart(value);
+          setShowPicker(null);
+        }}
         onCancel={() => setShowPicker(null)}
       />
       <SleepTimePicker
         visible={showPicker === "end"}
         title="选择结束时间"
         value={sleepEnd}
-        onConfirm={(val) => { setSleepEnd(val); setShowPicker(null); }}
+        onConfirm={(value) => {
+          setSleepEnd(value);
+          setShowPicker(null);
+        }}
         onCancel={() => setShowPicker(null)}
       />
       <NumberKeyboard
         visible={showFormulaKeyboard}
         value={String(formulaMl)}
-        onConfirm={(v) => { setFormulaMl(Number(v)); setShowFormulaKeyboard(false); }}
+        onConfirm={handleFormulaKeyboardConfirm}
         onCancel={() => setShowFormulaKeyboard(false)}
       />
     </Layout>

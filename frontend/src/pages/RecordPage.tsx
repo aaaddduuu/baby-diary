@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout, { Hero, HeroStatCard, ScrollArea, Fab } from "../components/Layout";
+import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import DatePickerSheet from "../components/DatePickerSheet";
 import { fetchRecords } from "../lib/api";
@@ -10,10 +10,10 @@ import type { BabyRecord } from "../lib/api";
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 const TYPE_META: Record<string, { icon: string; label: string; bg: string }> = {
-  breast_milk: { icon: "🤱", label: "母乳", bg: "bg-rose-light" },
+  breast_milk: { icon: "🥛", label: "母乳", bg: "bg-rose-light" },
   formula: { icon: "🍼", label: "配方奶", bg: "bg-sky-light" },
-  sleep: { icon: "💤", label: "睡眠", bg: "bg-indigo-light" },
-  diaper: { icon: "💧", label: "尿布", bg: "bg-amber-light" },
+  sleep: { icon: "😴", label: "睡眠", bg: "bg-indigo-light" },
+  diaper: { icon: "🧷", label: "尿布", bg: "bg-amber-light" },
   growth: { icon: "📏", label: "成长", bg: "bg-green-light" },
 };
 
@@ -36,6 +36,7 @@ function formatDetail(record: BabyRecord): string {
   }
   if (record.type === "sleep") {
     const start = new Date(data.start);
+    if (!data.end) return `${formatTime(data.start)} - 睡眠中`;
     const end = new Date(data.end);
     const diffMs = end.getTime() - start.getTime();
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -190,7 +191,14 @@ function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
         </div>
         <div className="flex-1 bg-white rounded-sm shadow-card py-[9px] px-[11px] cursor-pointer">
           <div className="flex items-center justify-between mb-0.5">
-            <div className="text-xs font-bold text-gray-900">{meta.label}</div>
+            <div className="flex items-center gap-1.5">
+              <div className="text-xs font-bold text-gray-900">{meta.label}</div>
+              {record.member_nickname && (
+                <span className="text-[10px] text-mint bg-mint-light px-1.5 py-0.5 rounded-pill">
+                  {record.avatar_emoji} {record.member_nickname}
+                </span>
+              )}
+            </div>
             <div className="text-[10px] text-gray-400">
               {formatTime(record.recorded_at)}
             </div>
@@ -297,10 +305,10 @@ export default function RecordPage() {
     <Layout>
       <Hero>
         <div className="flex items-center relative z-10">
-          <div className="font-serif text-xl font-bold text-white flex-1">记录</div>
+          <div className="header-title flex-1">记录</div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-3 relative z-10">
-          <HeroStatCard value={`${stats.breastCount}`} label="哺喂" suffix="次" />
+          <HeroStatCard value={`${stats.breastCount}`} label="母乳" suffix="次" />
           <HeroStatCard value={`${stats.sleepCount}`} label="睡眠" suffix="次" />
           <HeroStatCard value={`${stats.formulaMl}`} label="配方奶" suffix="ml" />
           <HeroStatCard value={`${stats.diaperCount}`} label="尿布" suffix="次" />
@@ -344,7 +352,7 @@ export default function RecordPage() {
 
       <ScrollArea className="pb-20">
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中...</div>
+          <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中…</div>
         ) : (
           <>
             {records.length > 0 ? (
@@ -360,15 +368,14 @@ export default function RecordPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <div className="text-5xl mb-4 opacity-40">📋</div>
+                <div className="text-5xl mb-4 opacity-40">📝</div>
                 <div className="text-sm font-medium text-gray-600 mb-1">暂无记录</div>
-                <div className="text-xs text-gray-400">点击右下角 + 开始记录</div>
+                <div className="text-xs text-gray-400">点击底部中间的 + 开始记录</div>
               </div>
             )}
           </>
         )}
       </ScrollArea>
-      <Fab onClick={() => navigate(`/record/add?date=${selectedDate}`)} />
       <BottomNav />
 
       {toast && (
@@ -397,3 +404,4 @@ export default function RecordPage() {
     </Layout>
   );
 }
+

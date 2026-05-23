@@ -129,18 +129,18 @@ export default function MyPage() {
     <Layout>
       <Hero>
         <div className="flex items-center relative z-10">
-          <div className="font-serif text-base font-semibold text-white flex-1">我的</div>
+          <div className="header-title flex-1">我的</div>
         </div>
         <div className="flex items-center gap-3.5 pt-1.5 relative z-10">
-          <div className="w-[72px] h-[72px] rounded-full bg-white/25 border-[3px] border-white/50 flex items-center justify-center text-[34px] flex-shrink-0">
+          <div className="w-[72px] h-[72px] rounded-full bg-white/25 border-[3px] border-white flex items-center justify-center text-[34px] flex-shrink-0 shadow-[0_2px_10px_rgba(0,0,0,.2)]">
             {baby?.gender === "male" ? "👦" : "👧"}
           </div>
           <div>
-            <div className="font-serif text-xl font-bold text-white mb-0.5">{baby?.name || "未添加宝宝"}</div>
+            <div className="header-title mb-0.5">{baby?.name || "未添加宝宝"}</div>
             {baby && (
               <button
                 onClick={() => navigate("/profile")}
-                className="inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5 text-[11px] text-white/90 cursor-pointer border-none"
+                className="header-subtitle inline-flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-pill py-1 px-2.5 text-[11px] cursor-pointer border-none"
               >
                 {baby.feeding_type === "breast" ? "🤱 母乳" : baby.feeding_type === "formula" ? "🍼 配方奶" : "🍼 混合"} · {calcAge(baby.birth_date)}
               </button>
@@ -265,6 +265,30 @@ export default function MyPage() {
             >
               <div className="w-9 h-9 rounded-full bg-mint-light flex items-center justify-center text-lg flex-shrink-0">➕</div>
               <div className="flex-1 text-sm font-medium text-mint">添加家庭成员</div>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2.5 mx-3.5">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">设置</div>
+          <div className="bg-white rounded-card shadow-card overflow-hidden">
+            <button
+              onClick={() => {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                if (isIOS) {
+                  window.location.href = "/baby.mobileconfig";
+                } else {
+                  alert("请使用 Chrome 菜单 → 添加到主屏幕");
+                }
+              }}
+              className="flex items-center w-full py-3 px-3.5 border-b border-border bg-transparent cursor-pointer text-left"
+            >
+              <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center text-base flex-shrink-0 mr-[11px]">📲</div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">添加到桌面</div>
+                <div className="text-[10px] text-gray-400">iOS: 下载后去 设置→通用→VPN与设备管理 安装</div>
+              </div>
+              <div className="text-gray-400">›</div>
             </button>
           </div>
         </div>

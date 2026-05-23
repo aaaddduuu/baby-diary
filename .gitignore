@@ -8,3 +8,5 @@ dist
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+frontend/public/icon-base64*.txt
+frontend/public/icon-original.png

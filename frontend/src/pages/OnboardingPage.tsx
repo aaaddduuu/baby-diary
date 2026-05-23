@@ -65,12 +65,13 @@ export default function OnboardingPage() {
 
   return (
     <Layout>
-      <div className="bg-gradient-to-br from-[#1A5848] via-mint to-[#B0E0D0] h-[200px] flex items-center justify-center relative overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_30%,rgba(255,255,255,.2),transparent_60%)]" />
+      <div className="h-[200px] flex items-center justify-center relative overflow-hidden flex-shrink-0" style={{ background: "var(--header-grad)" }}>
+        <div className="header-readable-overlay absolute inset-0" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_30%,rgba(255,255,255,.16),transparent_60%)]" />
         <div className="text-center relative z-10">
           <div className="text-[56px] mb-2.5">🌱</div>
-          <div className="font-serif text-2xl font-bold text-white">宝宝日记</div>
-          <div className="text-sm text-white/80 mt-1">记录每一个珍贵的成长瞬间</div>
+          <div className="header-title">宝宝日记</div>
+          <div className="header-subtitle text-sm mt-1">记录每一个珍贵的成长瞬间</div>
         </div>
       </div>
       <ScrollArea>

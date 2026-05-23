@@ -1,20 +1,43 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import Layout, { Hero, ScrollArea } from "../components/Layout";
+import Layout, { ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
+import { useAuth } from "../lib/AuthContext";
 import { useBaby } from "../lib/BabyContext";
-import { fetchRecords, fetchExpenses } from "../lib/api";
-import type { BabyRecord } from "../lib/api";
+import { fetchExpenses, fetchFamily, fetchRecords } from "../lib/api";
+import type { BabyRecord, FamilyMember } from "../lib/api";
+import { RECORD_TYPES } from "./recordFormShared";
 
-type IconName = "milk" | "bottle" | "moon" | "drop" | "poop" | "thermo" | "scale" | "note" | "chart" | "syringe" | "wallet" | "user" | "calendar";
+type IconName =
+  | "milk"
+  | "bottle"
+  | "moon"
+  | "drop"
+  | "poop"
+  | "thermo"
+  | "scale"
+  | "note"
+  | "chart"
+  | "syringe"
+  | "wallet"
+  | "user"
+  | "calendar"
+  | "spark";
 
-const TYPE_META: Record<string, { icon: IconName; label: string; color: string; bg: string }> = {
-  breast_milk: { icon: "milk", label: "母乳", color: "#D97891", bg: "#FFF0F4" },
-  formula: { icon: "bottle", label: "配方奶", color: "#5C9FE8", bg: "#EEF7FF" },
-  sleep: { icon: "moon", label: "睡眠", color: "#8D7BE7", bg: "#F2EFFF" },
-  diaper: { icon: "drop", label: "尿布", color: "#3CA8E6", bg: "#ECF8FF" },
-  growth: { icon: "scale", label: "成长", color: "#5BC4A0", bg: "#EAF8F2" },
+type RecordMeta = {
+  icon: IconName;
+  label: string;
+  tone: string;
+  surface: string;
+};
+
+const TYPE_META: Record<string, RecordMeta> = {
+  breast_milk: { icon: "milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  formula: { icon: "bottle", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
+  sleep: { icon: "moon", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
+  diaper: { icon: "drop", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
+  growth: { icon: "scale", label: "成长", tone: "#3FA37F", surface: "#EAF8F2" },
 };
 
 const sectionVariants = {
@@ -26,7 +49,7 @@ const pageVariants = {
   hidden: {},
   show: {
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.08,
     },
   },
 };
@@ -44,7 +67,7 @@ function Icon({ name, className = "", stroke = "currentColor" }: { name: IconNam
     strokeLinejoin: "round" as const,
   };
 
-  const paths: Record<IconName, React.ReactNode> = {
+  const paths: Record<IconName, ReactNode> = {
     milk: (
       <>
         <path d="M9 3h6" />
@@ -128,9 +151,23 @@ function Icon({ name, className = "", stroke = "currentColor" }: { name: IconNam
         <path d="M3 10h18" />
       </>
     ),
+    spark: (
+      <>
+        <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
+        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+      </>
+    ),
   };
 
   return <svg {...common}>{paths[name]}</svg>;
+}
+
+function safeJsonParse(value: string): Record<string, any> {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
 }
 
 function formatTime(isoStr: string): string {
@@ -139,19 +176,29 @@ function formatTime(isoStr: string): string {
 }
 
 function formatDetail(record: BabyRecord): string {
-  const data = JSON.parse(record.data);
+  const data = safeJsonParse(record.data);
+
   if (record.type === "breast_milk") {
-    if (data.side === "left") return `左侧 ${data.leftMin} 分钟`;
-    if (data.side === "right") return `右侧 ${data.rightMin} 分钟`;
-    return `双侧 ${(data.leftMin || 0) + (data.rightMin || 0)} 分钟`;
+    if (data.side === "left") return `左侧 ${data.leftMin ?? 0} 分钟`;
+    if (data.side === "right") return `右侧 ${data.rightMin ?? 0} 分钟`;
+    return `双侧 ${(Number(data.leftMin) || 0) + (Number(data.rightMin) || 0)} 分钟`;
   }
-  if (record.type === "formula") return `${data.ml} ml`;
+
+  if (record.type === "formula") return `${data.ml ?? 0} ml`;
   if (record.type === "sleep") return data.end ? `${formatTime(data.start)} - ${formatTime(data.end)}` : "睡眠中";
+
   if (record.type === "diaper") {
     const types: Record<string, string> = { wet: "小便", dirty: "大便", both: "都有" };
     return types[data.diaper_type] || "尿布";
   }
-  return data.note || "";
+
+  return String(data.note || "");
+}
+
+function calcDays(birthDate: string): number {
+  const birth = new Date(birthDate);
+  const now = new Date();
+  return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function calcAge(birthDate: string): string {
@@ -159,12 +206,6 @@ function calcAge(birthDate: string): string {
   const months = Math.floor(days / 30);
   const remainDays = days % 30;
   return months > 0 ? `${months}个月${remainDays}天` : `${days}天`;
-}
-
-function calcDays(birthDate: string): number {
-  const birth = new Date(birthDate);
-  const now = new Date();
-  return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function getLatestRecordByType(records: BabyRecord[], type: string): BabyRecord | undefined {
@@ -179,6 +220,7 @@ function formatTimeAgo(recordedAt: string): string | null {
   const diffMinutes = Math.floor((now.getTime() - recordTime.getTime()) / (1000 * 60));
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
+
   if (diffMinutes < 0) return null;
   if (diffMinutes < 60) return `${Math.max(diffMinutes, 1)}分钟前`;
   if (diffHours < 24) return `${diffHours}小时前`;
@@ -186,21 +228,49 @@ function formatTimeAgo(recordedAt: string): string | null {
   return `${diffDays}天前`;
 }
 
-function MoonEmpty() {
+function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
-    <svg width="112" height="86" viewBox="0 0 112 86" fill="none" aria-hidden="true">
-      <path d="M75.6 46.8c-4.4 20.5-27 29.8-44.1 18.4 15.1-1.2 28.4-12.1 31.9-28.1 2-9.4.3-18.7-4.1-26.2 12.8 5.8 19.4 21.5 16.3 35.9Z" fill="#FFD98A" />
-      <path d="M75.6 46.8c-4.4 20.5-27 29.8-44.1 18.4 12.7.9 31.9-6.2 39.4-28.1" stroke="#F2B75B" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="82" cy="18" r="3" fill="#FFE7A8" />
-      <circle cx="28" cy="24" r="2.5" fill="#CFEFE4" />
-      <path d="m93 35 2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Z" fill="#B9EBD9" />
-      <path d="m44 8 1.6 3.2L49 13l-3.4 1.8L44 18l-1.6-3.2L39 13l3.4-1.8L44 8Z" fill="#fff" opacity=".9" />
+    <div className="mb-3 flex items-end justify-between">
+      <div>
+        <div className="mb-1 h-1 w-8 rounded-pill bg-coral/70" />
+        <h2 className="text-[19px] font-bold tracking-[-0.01em] text-gray-900">{title}</h2>
+      </div>
+      {action && (
+        <button onClick={onAction} className="border-none bg-transparent p-0 text-[13px] font-semibold text-[#2D9B6A]">
+          {action} ›
+        </button>
+      )}
+    </div>
+  );
+}
+
+const QUICK_RECORD_META: Record<
+  (typeof RECORD_TYPES)[number]["type"],
+  { icon: IconName; tone: string; surface: string }
+> = {
+  breast_milk: { icon: "milk", tone: "#C95F7B", surface: "#FFF1F5" },
+  formula: { icon: "bottle", tone: "#4D92D8", surface: "#EDF7FF" },
+  sleep: { icon: "moon", tone: "#7C6AD8", surface: "#F2EFFF" },
+  diaper: { icon: "drop", tone: "#349FD5", surface: "#EAF8FF" },
+};
+
+function EmptyIllustration() {
+  return (
+    <svg width="132" height="104" viewBox="0 0 132 104" fill="none" aria-hidden="true">
+      <path d="M34 76c-1.7-19.8 12.4-38 32.4-40.8 20-2.9 39 10.4 42.8 30-10.7 18.9-53.8 28.2-75.2 10.8Z" fill="#EAF8F2" />
+      <path d="M49 39c4.7-12.2 19-18.2 31.4-13.4 12.4 4.8 18.5 18.7 13.9 31-4.7 12.2-19 18.2-31.4 13.4C50.5 65.2 44.3 51.2 49 39Z" fill="#FFF6DD" />
+      <path d="M83.5 55.5c-9.2 7.8-23.1 5.6-29.5-4.8 8.4 1.9 17.5-1.1 23.3-8 3.4-4 4.9-8.9 4.7-13.6 6.1 5.4 8 17.1 1.5 26.4Z" fill="#FFD778" />
+      <circle cx="42" cy="31" r="3" fill="#A8E7D2" />
+      <circle cx="99" cy="27" r="2.5" fill="#FFB493" />
+      <path d="m33 54 2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Z" fill="#BDEBD8" />
+      <path d="M39 79c19 9 45 7.7 66-4" stroke="#D3E8DC" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { baby } = useBaby();
   const [todayCount, setTodayCount] = useState(0);
   const [monthExpense, setMonthExpense] = useState(0);
@@ -208,6 +278,7 @@ export default function HomePage() {
   const [allRecords, setAllRecords] = useState<BabyRecord[]>([]);
   const [upcomingVaccineCount, setUpcomingVaccineCount] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
+  const [currentRelation, setCurrentRelation] = useState("家人");
 
   const today = new Date().toISOString().slice(0, 10);
   const todayRecords = useMemo(
@@ -222,6 +293,7 @@ export default function HomePage() {
     if (!baby) return;
 
     setPageLoading(true);
+    setCurrentRelation(baby.relation || "家人");
     Promise.all([
       fetchRecords(baby.id).then((records) => {
         setAllRecords(records);
@@ -237,7 +309,8 @@ export default function HomePage() {
       })
         .then((res) => res.json())
         .then((data) => {
-          if (!data.success) return;
+          if (!data.success || !Array.isArray(data.data)) return;
+
           const now = new Date();
           const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
           const upcoming = data.data.filter((v: { status: string; date: string | null }) => {
@@ -245,28 +318,32 @@ export default function HomePage() {
             const vaccineDate = new Date(v.date);
             return vaccineDate >= now && vaccineDate <= thirtyDaysLater;
           });
+
           setUpcomingVaccineCount(upcoming.length);
         }),
+      fetchFamily().then((family) => {
+        const currentMember = family.members.find((member: FamilyMember) => member.user_id === user?.id);
+        if (currentMember?.nickname) {
+          setCurrentRelation(currentMember.nickname);
+        }
+      }),
     ])
       .catch(() => {})
       .finally(() => setPageLoading(false));
-  }, [baby, today]);
+  }, [baby, today, user?.id]);
 
   const quickRecordItems = useMemo(() => {
-    const items = [
-      { icon: "milk" as const, label: "母乳", type: "breast_milk", color: "#D97891", bg: "#FFF0F4", path: "/record/add?type=breast_milk" },
-      { icon: "bottle" as const, label: "配方奶", type: "formula", color: "#5C9FE8", bg: "#EEF7FF", path: "/record/add?type=formula" },
-      { icon: "moon" as const, label: "睡眠", type: "sleep", color: "#8D7BE7", bg: "#F2EFFF", path: "/record/add?type=sleep" },
-      { icon: "drop" as const, label: "小便", type: "diaper", color: "#3CA8E6", bg: "#ECF8FF", path: "/record/add?type=diaper" },
-      { icon: "poop" as const, label: "大便", type: "diaper", color: "#B57965", bg: "#F7F1EC", path: "/record/add?type=diaper" },
-      { icon: "thermo" as const, label: "体温", type: "growth", color: "#FF8C69", bg: "#FFF0EA", path: "/record/add" },
-      { icon: "scale" as const, label: "体重", type: "growth", color: "#73B95B", bg: "#EFF9EA", path: "/growth" },
-      { icon: "note" as const, label: "备注", type: "note", color: "#8F98A8", bg: "#F2F4F7", path: "/record/add" },
-    ];
-
-    return items.map((item) => {
-      const latest = item.type === "note" ? undefined : getLatestRecordByType(allRecords, item.type);
-      return { ...item, timeAgo: latest ? formatTimeAgo(latest.recorded_at) : null };
+    return RECORD_TYPES.map((item) => {
+      const meta = QUICK_RECORD_META[item.type];
+      const latest = getLatestRecordByType(allRecords, item.type);
+      return {
+        ...item,
+        iconName: meta.icon,
+        tone: meta.tone,
+        surface: meta.surface,
+        path: `/record/add?type=${item.type}`,
+        timeAgo: latest ? formatTimeAgo(latest.recorded_at) : null,
+      };
     });
   }, [allRecords]);
 
@@ -274,151 +351,159 @@ export default function HomePage() {
     return (
       <Layout>
         <div className="flex h-full items-center justify-center">
-          <div className="text-sm text-gray-400">加载中...</div>
+          <div className="rounded-pill bg-white/75 px-4 py-2 text-sm font-medium text-gray-400 shadow-card">加载中…</div>
         </div>
       </Layout>
     );
   }
 
   const statCards = [
-    { icon: "calendar" as const, value: `${calcDays(baby.birth_date)}`, suffix: "天", label: "出生天数" },
-    { icon: "note" as const, value: `${todayCount}`, suffix: "次", label: "今日记录" },
-    { icon: "wallet" as const, value: `¥${monthExpense.toLocaleString()}`, label: "本月花费" },
+    { icon: "calendar" as const, value: `${calcDays(baby.birth_date)}`, suffix: "天", label: "出生天数", tone: "#2FA47E" },
+    { icon: "note" as const, value: `${todayCount}`, suffix: "次", label: "今日记录", tone: "#E77751" },
+    { icon: "wallet" as const, value: `¥${monthExpense.toLocaleString()}`, label: "本月花费", tone: "#8067D8" },
   ];
 
   const featureCards = [
-    { icon: "chart" as const, label: "成长曲线", path: "/growth", gradient: "from-[#DDF7EA] to-[#BDEBD8]", color: "#2FA47E" },
-    { icon: "syringe" as const, label: "疫苗记录", path: "/vaccine", gradient: "from-[#E4F3FF] to-[#CFE8FF]", color: "#3B8EDB", badge: upcomingVaccineCount },
-    { icon: "wallet" as const, label: "记账", path: "/expense", gradient: "from-[#FFEBD9] to-[#FFD9BA]", color: "#E98232" },
-    { icon: "user" as const, label: "我的", path: "/my", gradient: "from-[#EFE8FF] to-[#DDD1FF]", color: "#7F64DD" },
+    { icon: "chart" as const, label: "成长曲线", desc: "身高体重", path: "/growth", surface: "#D1FAE5", tone: "#059669" },
+    { icon: "syringe" as const, label: "疫苗计划", desc: "近期提醒", path: "/vaccine", surface: "#DBEAFE", tone: "#2563EB", badge: upcomingVaccineCount },
+    { icon: "wallet" as const, label: "家庭账本", desc: "花费统计", path: "/expense", surface: "#FFEDD5", tone: "#EA580C" },
+    { icon: "user" as const, label: "我的空间", desc: "家庭成员", path: "/my", surface: "#EDE9FE", tone: "#7C3AED" },
   ];
 
   return (
-    <Layout>
+    <Layout className="bg-[radial-gradient(circle_at_18%_0%,#FFF4DF_0,transparent_34%),radial-gradient(circle_at_88%_18%,#DCF5EA_0,transparent_31%),var(--page-bg)]">
       <motion.div initial="hidden" animate="show" variants={pageVariants} className="flex min-h-0 flex-1 flex-col">
-        <Hero>
+        <div className="relative flex-shrink-0 overflow-hidden px-4 pb-5 pt-12">
+          <div className="absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" style={{ background: "var(--header-grad)" }} />
+          <div className="header-readable-overlay absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" />
+          <div className="absolute right-[-42px] top-8 h-36 w-36 rounded-full bg-white/18 blur-2xl" />
+          <div className="absolute left-[-56px] top-24 h-32 w-32 rounded-full bg-[#1C6F52]/20 blur-2xl" />
+
           <motion.div variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }} className="relative z-10">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate("/family")} className="flex-1 border-none bg-transparent p-0 text-left">
-                <div className="text-2xl font-bold leading-tight text-white drop-shadow-sm">{baby.name}</div>
-                <div className="mt-1 text-[13px] font-medium text-white/70">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <button onClick={() => navigate("/family")} className="min-w-0 flex-1 border-none bg-transparent p-0 text-left">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-pill border border-white/50 bg-white/20 px-3 py-1 text-[11px] font-bold text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,.45)] backdrop-blur-md">
+                  <Icon name="spark" className="h-3.5 w-3.5" />
+                  今日小日记                </div>
+                <div className="header-title truncate">{baby.name}</div>
+                <div className="header-subtitle mt-2 text-[13px] font-semibold">
                   {calcAge(baby.birth_date)} · {baby.birth_date} 出生
                 </div>
               </button>
+
               <button
                 onClick={() => navigate("/family")}
-                className="flex items-center gap-2 rounded-pill border border-white/35 bg-white/22 py-1.5 pl-2 pr-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.28)] backdrop-blur-md"
+                className="flex shrink-0 items-center gap-2 rounded-[20px] border border-white/55 bg-white/20 py-2 pl-2 pr-3 text-white/90 shadow-[0_12px_28px_rgba(56,111,86,.12),inset_0_1px_0_rgba(255,255,255,.55)] backdrop-blur-md"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFE4B6] text-xs font-bold text-[#A66A2B]">
-                  {baby.relation?.slice(0, 1) || "家"}
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FFF2C8] text-sm font-black text-[#9B6529]">
+                  {currentRelation.slice(0, 1) || "家"}
                 </span>
-                <span className="text-sm font-semibold">{baby.relation || "家人"}</span>
-                <span className="text-xs text-white/75">⌄</span>
+                <span className="text-sm font-bold">{currentRelation}</span>
               </button>
             </div>
 
-            <div className="no-scrollbar -mx-[18px] mt-7 flex gap-3 overflow-x-auto px-[18px] pb-1">
+            <div className="grid grid-cols-3 gap-2.5">
               {statCards.map((card) => (
-                <div key={card.label} className="min-w-[148px] rounded-2xl border border-white/30 bg-white/24 p-3.5 text-white shadow-[0_8px_24px_rgba(37,113,85,.12)] backdrop-blur-md">
-                  <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-white/24">
-                    <Icon name={card.icon} className="h-5 w-5" />
+                <button
+                  key={card.label}
+                  onClick={() => (card.label === "本月花费" ? navigate("/expense") : navigate("/record"))}
+                  className="rounded-[22px] border border-white/60 bg-white/90 p-3 text-left shadow-[0_10px_26px_rgba(26,92,58,.12)] backdrop-blur-md"
+                >
+                  <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-2xl bg-white/70" style={{ color: card.tone }}>
+                    <Icon name={card.icon} className="h-[18px] w-[18px]" />
                   </div>
-                  <div className="font-tabular text-[28px] font-bold leading-none">
+                  <div className="font-tabular text-[23px] font-black leading-none tracking-[-0.04em] text-[#1A5C3A]">
                     {card.value}
-                    {card.suffix && <span className="ml-1 text-sm font-semibold text-white/75">{card.suffix}</span>}
+                    {card.suffix && <span className="ml-0.5 text-xs font-bold tracking-normal text-[#1A5C3A]">{card.suffix}</span>}
                   </div>
-                  <div className="mt-1 text-xs font-medium text-white/75">{card.label}</div>
-                </div>
+                  <div className="mt-1 text-[11px] font-bold text-[#3A7A5A]">{card.label}</div>
+                </button>
               ))}
             </div>
           </motion.div>
-        </Hero>
+        </div>
 
         <ScrollArea className="pb-4">
-          <div className="space-y-6 px-4 pt-5">
+          <div className="space-y-6 px-4 pt-2">
             <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[19px] font-bold text-gray-900">快速记录</h2>
-                <button onClick={() => navigate("/record")} className="border-none bg-transparent text-sm font-semibold text-mint">
-                  记录全部 <span className="text-base">›</span>
-                </button>
-              </div>
-              <div className="grid grid-cols-4 gap-3">
+              <SectionHeader title="快速记录" action="查看全部" onAction={() => navigate("/record")} />
+              <div className="grid grid-cols-2 gap-2.5">
                 {quickRecordItems.map((item) => (
                   <motion.button
                     key={item.label}
                     whileTap={{ scale: 0.95 }}
-                    whileHover={{ y: -3 }}
+                    whileHover={{ y: -2 }}
                     transition={{ type: "spring", stiffness: 420, damping: 28 }}
                     onClick={() => navigate(item.path)}
-                    className="min-h-[112px] rounded-xl border border-[#EFF2EF] bg-white px-1.5 py-3 text-center shadow-card"
+                    className="min-h-[108px] rounded-[22px] border border-white bg-white/86 px-1.5 py-3 text-center shadow-soft"
                   >
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: item.bg, color: item.color }}>
-                      <Icon name={item.icon} className="h-6 w-6" />
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px]" style={{ backgroundColor: item.surface, color: item.tone }}>
+                      <Icon name={item.iconName} className="h-6 w-6" />
                     </div>
-                    <div className="mt-3 text-xs font-bold text-gray-600">{item.label}</div>
-                    {item.timeAgo && <div className="mt-1 text-[10px] font-medium text-gray-400">{item.timeAgo}</div>}
+                    <div className="mt-2.5 text-xs font-black text-gray-700">{item.label}</div>
+                    <div className="mt-1 min-h-[14px] text-[10px] font-semibold text-gray-400">{item.timeAgo || "一键添加"}</div>
                   </motion.button>
                 ))}
               </div>
             </motion.section>
 
             <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
-              <h2 className="mb-3 text-[19px] font-bold text-gray-900">常用功能</h2>
-              <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+              <SectionHeader title="常用功能" />
+              <div className="grid grid-cols-2 gap-3">
                 {featureCards.map((item) => (
                   <button
                     key={item.label}
                     onClick={() => navigate(item.path)}
-                    className="relative min-w-[100px] rounded-card border border-[#EEF1EE] bg-white p-3 text-left shadow-card"
+                    className="relative flex min-h-[92px] items-center gap-3 rounded-[22px] border border-white bg-white/88 p-3 text-left shadow-soft"
                   >
                     {item.badge ? (
-                      <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-pill bg-coral px-1.5 text-[10px] font-bold text-white">
+                      <span className="absolute right-3 top-3 flex h-5 min-w-5 items-center justify-center rounded-pill bg-coral px-1.5 text-[10px] font-black text-white">
                         {item.badge}
                       </span>
                     ) : null}
-                    <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.gradient}`} style={{ color: item.color }}>
-                      <Icon name={item.icon} className="h-6 w-6" />
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: item.surface, color: item.tone }}>
+                      <Icon name={item.icon} className="h-[22px] w-[22px]" />
                     </div>
-                    <div className="text-sm font-bold text-gray-700">{item.label}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-black text-gray-900">{item.label}</div>
+                      <div className="mt-0.5 truncate text-[11px] font-semibold text-gray-400">{item.desc}</div>
+                    </div>
+                    <div className="text-lg font-bold text-gray-300">›</div>
                   </button>
                 ))}
               </div>
             </motion.section>
 
             <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-[19px] font-bold text-gray-900">今日记录</h2>
-                <button onClick={() => navigate("/record")} className="border-none bg-transparent text-sm font-semibold text-mint">
-                  查看全部 <span className="text-base">›</span>
-                </button>
-              </div>
+              <SectionHeader title="今日记录" action="查看全部" onAction={() => navigate("/record")} />
 
               {todayRecords.length > 0 ? (
                 <div className="space-y-3">
-                  {todayRecords.slice(0, 6).map((record) => {
+                  {todayRecords.slice(0, 6).map((record, index) => {
                     const meta = TYPE_META[record.type] || TYPE_META.growth;
                     const detail = formatDetail(record);
-                    const note = JSON.parse(record.data).note;
+                    const note = safeJsonParse(record.data).note;
 
                     return (
-                      <div key={record.id} className="grid grid-cols-[46px_1fr] gap-3">
-                        <div className="pt-4 text-right font-tabular text-xs font-bold text-gray-400">{formatTime(record.recorded_at)}</div>
-                        <div className="relative rounded-card bg-white p-3.5 shadow-card">
-                          <span className="absolute -left-[19px] top-5 h-3 w-3 rounded-full border-2 border-white" style={{ backgroundColor: meta.color }} />
-                          <span className="absolute -left-[14px] top-8 h-[calc(100%+12px)] w-px bg-border last:hidden" />
+                      <div key={record.id} className="grid grid-cols-[54px_1fr] gap-3">
+                        <div className="pt-4 text-right">
+                          <div className="font-tabular text-xs font-black text-gray-400">{formatTime(record.recorded_at)}</div>
+                          {index === 0 && <div className="mt-1 text-[10px] font-bold text-mint-dark">最新</div>}
+                        </div>
+                        <div className="relative rounded-[24px] border border-white bg-white/88 p-3.5 shadow-soft">
+                          <span className="absolute -left-[22px] top-5 h-3.5 w-3.5 rounded-full border-[3px] border-[#F8F7EF]" style={{ backgroundColor: meta.tone }} />
                           <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl" style={{ backgroundColor: meta.bg, color: meta.color }}>
-                              <Icon name={meta.icon} className="h-5 w-5" />
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px]" style={{ backgroundColor: meta.surface, color: meta.tone }}>
+                              <Icon name={meta.icon} className="h-[22px] w-[22px]" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-bold text-gray-900">{meta.label}</div>
-                              <div className="mt-0.5 truncate text-xs text-gray-400">
+                              <div className="text-sm font-black text-gray-900">{meta.label}</div>
+                              <div className="mt-0.5 truncate text-xs font-medium text-gray-400">
                                 {detail}
                                 {note ? ` · ${note}` : ""}
                               </div>
                             </div>
-                            <div className="font-tabular text-xs font-semibold text-gray-300">{formatTime(record.recorded_at)}</div>
+                            <div className="rounded-pill bg-gray-50 px-2 py-1 font-tabular text-[11px] font-bold text-gray-300">{formatTime(record.recorded_at)}</div>
                           </div>
                         </div>
                       </div>
@@ -426,27 +511,28 @@ export default function HomePage() {
                   })}
                 </div>
               ) : (
-                <div className="rounded-[24px] bg-white px-6 py-10 text-center shadow-card">
+                <div className="rounded-[28px] border border-white bg-white/88 px-6 py-9 text-center shadow-soft">
                   <div className="mb-4 flex justify-center">
-                    <MoonEmpty />
+                    <EmptyIllustration />
                   </div>
-                  <div className="mb-5 text-base font-semibold text-gray-600">今天还没有记录</div>
+                  <div className="mb-1 text-base font-black text-gray-700">今天还没有记录</div>
+                  <div className="mb-5 text-xs font-medium leading-relaxed text-gray-400">从一次喂奶、睡眠或尿布开始，慢慢拼出 {baby.name} 的一天。</div>
                   <motion.button
-                    animate={{ scale: [1, 1.04, 1] }}
+                    animate={{ scale: [1, 1.035, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                     onClick={() => navigate("/record/add")}
-                    className="rounded-xl border-none bg-mint px-6 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(91,196,160,.28)]"
+                    className="rounded-[18px] border-none bg-[#24382F] px-6 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(31,56,45,.18)]"
                   >
-                    快速添加 +
+                    添加第一条
                   </motion.button>
                 </div>
               )}
             </motion.section>
 
             {!hasRecords && (
-              <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }} className="rounded-[24px] bg-[#EAF8F2] p-4">
-                <div className="text-sm font-bold text-gray-900">从第一条记录开始</div>
-                <div className="mt-1 text-xs leading-relaxed text-gray-500">记录喂养、睡眠、尿布和花费，慢慢拼出 {baby.name} 的成长节奏。</div>
+              <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }} className="rounded-[26px] border border-[#F3DFC6] bg-[#FFF8E8] p-4 shadow-soft">
+                <div className="text-sm font-black text-gray-900">从第一条记录开始</div>
+                <div className="mt-1 text-xs leading-relaxed text-gray-500">记录喂养、睡眠、尿布和花费，之后首页会自动汇总最近的节奏。</div>
               </motion.section>
             )}
 
@@ -458,3 +544,5 @@ export default function HomePage() {
     </Layout>
   );
 }
+
+

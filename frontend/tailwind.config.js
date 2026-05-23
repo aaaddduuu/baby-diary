@@ -4,14 +4,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        cream: "#F7FAF8",
-        border: "#E8EFEA",
+        cream: "#F8F7EF",
+        border: "#E7E3D8",
         mint: {
           DEFAULT: "#5BC4A0",
           light: "#EAF8F2",
           dark: "#2FA47E",
         },
         coral: "#FF8C69",
+        ink: "#21382E",
         amber: {
           DEFAULT: "#E8A030",
           light: "#FEF4E0",
@@ -69,6 +70,7 @@ export default {
       boxShadow: {
         card: "0 2px 12px rgba(0,0,0,.06)",
         "card-lg": "0 8px 30px rgba(43,116,91,.14)",
+        soft: "0 12px 34px rgba(57,87,70,.08), 0 2px 10px rgba(57,87,70,.04)",
       },
     },
   },

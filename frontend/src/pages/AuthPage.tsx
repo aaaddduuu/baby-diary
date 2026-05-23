@@ -61,11 +61,12 @@ export default function AuthPage() {
 
   return (
     <Layout>
-      <div className="bg-gradient-to-br from-[#1A5848] via-mint to-[#B0E0D0] pt-12 pb-9 flex flex-col items-center relative overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_30%,rgba(255,255,255,.2),transparent_60%)]" />
+      <div className="pt-12 pb-9 flex flex-col items-center relative overflow-hidden flex-shrink-0" style={{ background: "var(--header-grad)" }}>
+        <div className="header-readable-overlay absolute inset-0" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_60%_30%,rgba(255,255,255,.16),transparent_60%)]" />
         <div className="text-5xl mb-2.5 relative z-10">🌱</div>
-        <div className="font-serif text-2xl font-bold text-white relative z-10">宝宝日记</div>
-        <div className="text-sm text-white/80 mt-1 relative z-10">记录每一个珍贵的成长瞬间</div>
+        <div className="header-title relative z-10">宝宝日记</div>
+        <div className="header-subtitle text-sm mt-1 relative z-10">记录每一个珍贵的成长瞬间</div>
       </div>
       <ScrollArea className="px-4 pt-5">
         <div className="flex bg-gray-100 rounded-sm p-0.5 gap-0.5 mb-5">

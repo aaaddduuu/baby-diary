@@ -19,7 +19,7 @@ const CATEGORY_META: Record<string, { icon: string; color: string; hex: string }
 
 const MONTHS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
-function DonutChart({ stats }: { stats: { name: string; pct: number; hex: string }[] }) {
+function DonutChart({ stats, totalAmount }: { stats: { name: string; pct: number; hex: string }[]; totalAmount: number }) {
   const size = 120;
   const strokeWidth = 24;
   const radius = (size - strokeWidth) / 2;
@@ -49,11 +49,11 @@ function DonutChart({ stats }: { stats: { name: string; pct: number; hex: string
           />
         );
       })}
-      <text x={size / 2} y={size / 2 - 8} textAnchor="middle" className="fill-gray-400 text-[11px]">
-        共{stats.length}类
+      <text x={size / 2} y={size / 2 - 3} textAnchor="middle" className="fill-[#1A5C3A] text-[18px] font-bold">
+        ¥{totalAmount.toLocaleString()}
       </text>
-      <text x={size / 2} y={size / 2 + 10} textAnchor="middle" className="fill-gray-900 text-[14px] font-bold">
-        100%
+      <text x={size / 2} y={size / 2 + 16} textAnchor="middle" className="fill-[#6B7280] text-[12px]">
+        本月支出
       </text>
     </svg>
   );
@@ -65,10 +65,11 @@ function YearBarChart({ monthlyData, currentMonth, onMonthClick }: {
   onMonthClick: (month: number) => void;
 }) {
   const maxAmount = Math.max(...monthlyData.map(d => d.amount), 1);
-  const chartWidth = 320;
+  const visibleCount = Math.max(monthlyData.length, 1);
+  const chartWidth = Math.max(120, visibleCount * 42);
   const chartHeight = 140;
-  const barWidth = 18;
-  const gap = (chartWidth - barWidth * 12) / 11;
+  const barWidth = visibleCount <= 6 ? 24 : 18;
+  const gap = visibleCount > 1 ? (chartWidth - barWidth * visibleCount) / (visibleCount - 1) : 0;
   const leftPad = 30;
   const bottomPad = 25;
 
@@ -155,16 +156,45 @@ export default function ExpensePage() {
   );
 
   const monthlyData = useMemo(() => {
-    const data: { month: number; amount: number }[] = [];
+    if (!baby) return [];
+
+    const amountByMonth = new Map<number, number>();
     for (let m = 1; m <= 12; m++) {
       const monthStr = `${selectedYear}-${String(m).padStart(2, "0")}`;
       const amount = yearExpenses
         .filter(e => e.date.startsWith(monthStr))
         .reduce((sum, e) => sum + e.amount, 0);
-      data.push({ month: m, amount });
+      if (amount > 0) {
+        amountByMonth.set(m, amount);
+      }
     }
-    return data;
-  }, [yearExpenses, selectedYear]);
+
+    const dataMonths = [...amountByMonth.keys()].sort((a, b) => a - b);
+    if (dataMonths.length >= 6) {
+      return dataMonths.map(month => ({ month, amount: amountByMonth.get(month) || 0 }));
+    }
+
+    const now = new Date();
+    const birth = new Date(baby.birth_date);
+    const birthYear = birth.getFullYear();
+    const birthMonth = birth.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const startMonth = selectedYear === birthYear ? birthMonth : selectedYear > birthYear ? 1 : 13;
+    const endMonth = selectedYear === currentYear ? currentMonth : selectedYear < currentYear ? 12 : 0;
+
+    if (startMonth > endMonth) {
+      return dataMonths.map(month => ({ month, amount: amountByMonth.get(month) || 0 }));
+    }
+
+    const months: { month: number; amount: number }[] = [];
+    for (let month = startMonth; month <= endMonth; month++) {
+      months.push({ month, amount: amountByMonth.get(month) || 0 });
+    }
+
+    return months;
+  }, [baby, yearExpenses, selectedYear]);
 
   const yearTotal = useMemo(() =>
     monthlyData.reduce((sum, d) => sum + d.amount, 0),
@@ -242,9 +272,9 @@ export default function ExpensePage() {
 
   return (
     <Layout>
-      <Hero style={{ background: "linear-gradient(160deg, #0F3D2E 0%, #1A5848 50%, #2D7A5E 100%)" }}>
+      <Hero>
         <div className="flex items-center relative z-10">
-          <div className="font-serif text-xl font-bold text-white flex-1">📊 宝宝账本</div>
+          <div className="header-title flex-1">📊 宝宝账本</div>
         </div>
         <div className="relative z-10 pt-2">
           <div className="flex items-center justify-between mb-1">
@@ -270,7 +300,7 @@ export default function ExpensePage() {
               >
                 ‹
               </button>
-              <span className="text-[13px] text-white/70">{selectedMonth}月</span>
+              <span className="header-subtitle text-[13px]">{selectedMonth}月</span>
               <button
                 onClick={handleNextMonth}
                 className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-xs border-none cursor-pointer"
@@ -281,9 +311,9 @@ export default function ExpensePage() {
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-[18px] text-white/90 font-medium">¥</span>
-            <span className="font-serif text-[36px] font-bold text-white leading-none">{totalAmount.toLocaleString()}</span>
+              <span className="header-text-shadow font-serif text-[36px] font-bold text-white leading-none">{totalAmount.toLocaleString()}</span>
           </div>
-          <div className="text-[13px] text-white/70 mt-1">{monthExpenses.length}笔</div>
+                <div className="header-subtitle text-[13px] mt-1">{monthExpenses.length}笔</div>
         </div>
       </Hero>
       <ScrollArea className="pb-20">
@@ -312,7 +342,7 @@ export default function ExpensePage() {
                 </div>
                 <div className="bg-white rounded-card shadow-card overflow-hidden">
                   <div className="flex items-center justify-center py-4 border-b border-border">
-                    <DonutChart stats={categoryStats} />
+                    <DonutChart stats={categoryStats} totalAmount={totalAmount} />
                   </div>
                   {categoryStats.map((cat) => (
                     <div key={cat.name} className="flex items-center py-3 px-3.5 border-b border-border last:border-b-0">
@@ -384,7 +414,7 @@ export default function ExpensePage() {
           </>
         )}
       </ScrollArea>
-      <Fab variant="indigo" onClick={() => navigate("/expense/add")} />
+      <Fab onClick={() => navigate("/expense/add")} />
       <BottomNav />
     </Layout>
   );

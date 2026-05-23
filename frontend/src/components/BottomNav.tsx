@@ -2,15 +2,16 @@ import { Link, useLocation } from "react-router-dom";
 
 type IconName = "home" | "record" | "wallet" | "user";
 
-const tabs: Array<{ label: string; path: string; icon: IconName; featured?: boolean }> = [
+const tabs: Array<{ label: string; path: string; icon: IconName } | { type: "fab"; path: string }> = [
   { label: "首页", path: "/home", icon: "home" },
-  { label: "记录", path: "/record", icon: "record", featured: true },
+  { label: "记录", path: "/record", icon: "record" },
+  { type: "fab", path: "/record/add" },
   { label: "记账", path: "/expense", icon: "wallet" },
   { label: "我的", path: "/my", icon: "user" },
 ];
 
 function NavIcon({ name, active }: { name: IconName; active: boolean }) {
-  const stroke = active ? "#5BC4A0" : "#7E8781";
+  const stroke = active ? "#2D9B6A" : "#8A928A";
   const common = {
     width: 24,
     height: 24,
@@ -64,33 +65,45 @@ export default function BottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="relative flex flex-shrink-0 items-end border-t border-border bg-white/94 px-2 pb-3 pt-2 backdrop-blur-[18px] shadow-[0_-8px_26px_rgba(49,92,75,.07)]">
-      {tabs.map((tab) => {
+    <nav className="relative flex flex-shrink-0 items-end border-t border-white/70 bg-white/82 px-2 pb-3 pt-2 backdrop-blur-[22px] shadow-[0_-14px_34px_rgba(57,87,70,.08)]">
+      {tabs.map((tab, index) => {
+        if ("type" in tab) {
+          return (
+            <Link
+              key="add-record"
+              to={tab.path}
+              className="relative flex flex-1 flex-col items-center justify-end border-none bg-transparent py-1 font-sans no-underline"
+              aria-label="新增记录"
+            >
+              <div className="absolute bottom-[20px] flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-white bg-[#2D9B6A] text-[32px] font-light leading-none text-white shadow-[0_8px_20px_rgba(45,155,106,.28)]">
+                +
+              </div>
+              <div className="h-[31px]" aria-hidden="true" />
+            </Link>
+          );
+        }
+
         const active = pathname === tab.path || pathname.startsWith(tab.path + "/");
 
         return (
           <Link
-            key={tab.path}
+            key={`${tab.path}-${index}`}
             to={tab.path}
-            className="relative flex flex-1 flex-col items-center justify-end gap-1 border-none bg-transparent py-1 font-sans no-underline"
+            className="relative flex flex-1 flex-col items-center justify-end gap-1 border-none bg-transparent pb-[6px] pt-1 font-sans no-underline"
             aria-label={tab.label}
           >
-            {tab.featured ? (
-              <div className="-mt-8 flex flex-col items-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border-[5px] border-white bg-gradient-to-br from-[#A8EDCD] to-mint text-[30px] font-light leading-none text-white shadow-[0_8px_24px_rgba(91,196,160,.36)]">
-                  +
-                </div>
-              </div>
-            ) : (
-              <div className="flex h-6 w-6 items-center justify-center">
-                <NavIcon name={tab.icon} active={active} />
-              </div>
-            )}
+            <div className="flex h-6 w-6 items-center justify-center">
+              <NavIcon name={tab.icon} active={active} />
+            </div>
 
-            <div className={`text-[11px] font-semibold ${active ? "text-mint" : "text-[#7E8781]"}`}>
+            <div className={`text-[11px] font-bold ${active ? "text-[#2D9B6A]" : "text-[#8A928A]"}`}>
               {tab.label}
             </div>
-            <div className={`h-0.5 w-5 rounded-pill transition-opacity ${active ? "bg-mint opacity-100" : "opacity-0"}`} />
+            <div
+              className={`absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-[1px] transition-opacity ${
+                active ? "bg-[#2D9B6A] opacity-100" : "opacity-0"
+              }`}
+            />
           </Link>
         );
       })}

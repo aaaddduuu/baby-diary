@@ -13,7 +13,12 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.use("/api/*", cors());
+app.use("/api/*", cors({
+  origin: ["https://baby.rocdo.app", "http://localhost:5173", "http://localhost:3000"],
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
 
 app.route("/api/auth", auth);
 app.route("/api/babies", babies);
