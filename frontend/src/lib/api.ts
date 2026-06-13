@@ -89,7 +89,12 @@ export interface VaccineRecord {
   is_custom: number;
 }
 
-const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "/api";
+function getApiBase() {
+  if (import.meta.env.VITE_API_URL) return `${import.meta.env.VITE_API_URL}/api`;
+  return "/api";
+}
+
+const BASE = getApiBase();
 
 async function request<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
   const token = localStorage.getItem("token");

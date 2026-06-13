@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">首页概览示意图</title>
+  <desc id="desc">首页展示宝宝年龄、今日记录、本月花费、快速记录和今日时间线。</desc>
+  <rect width="1200" height="720" rx="32" fill="#F8F7EF"/>
+  <g transform="translate(86 88)">
+    <text x="0" y="0" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="48" font-weight="800" fill="#21382E">首页：今天发生了什么，一眼就知道</text>
+    <text x="0" y="54" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" fill="#5F7368">用出生天数、今日记录、本月花费和近期疫苗，把照护状态集中到第一屏。</text>
+    <g transform="translate(0 116)">
+      <rect width="250" height="136" rx="24" fill="#EAF8F2"/>
+      <text x="28" y="52" font-size="32">📅</text>
+      <text x="28" y="88" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="34" font-weight="800" fill="#1A5C3A">68 天</text>
+      <text x="28" y="116" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#49735D">出生天数</text>
+      <rect x="280" width="250" height="136" rx="24" fill="#FFF3EA"/>
+      <text x="308" y="52" font-size="32">📝</text>
+      <text x="308" y="88" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="34" font-weight="800" fill="#C95F4A">12 次</text>
+      <text x="308" y="116" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#8E5A45">今日记录</text>
+      <rect x="560" width="250" height="136" rx="24" fill="#F1EEFF"/>
+      <text x="588" y="52" font-size="32">💰</text>
+      <text x="588" y="88" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="34" font-weight="800" fill="#6F56C8">¥1,286</text>
+      <text x="588" y="116" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#6A5A8E">本月花费</text>
+    </g>
+    <g transform="translate(0 306)">
+      <text x="0" y="0" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="28" font-weight="800" fill="#21382E">快速记录</text>
+      <g transform="translate(0 34)">
+        <rect width="160" height="118" rx="22" fill="#FFFFFF"/>
+        <text x="68" y="50" font-size="34">🤱</text><text x="80" y="88" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">母乳</text>
+        <rect x="178" width="160" height="118" rx="22" fill="#FFFFFF"/>
+        <text x="246" y="50" font-size="34">🍼</text><text x="258" y="88" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">配方奶</text>
+        <rect x="356" width="160" height="118" rx="22" fill="#FFFFFF"/>
+        <text x="424" y="50" font-size="34">🌙</text><text x="436" y="88" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">睡眠</text>
+        <rect x="534" width="160" height="118" rx="22" fill="#FFFFFF"/>
+        <text x="602" y="50" font-size="34">🧷</text><text x="614" y="88" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">尿布</text>
+      </g>
+    </g>
+    <g transform="translate(770 286)">
+      <rect width="300" height="248" rx="28" fill="#FFFFFF"/>
+      <text x="28" y="44" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" font-weight="800" fill="#21382E">今日记录</text>
+      <line x1="54" y1="74" x2="54" y2="208" stroke="#DCEBE3" stroke-width="4"/>
+      <circle cx="54" cy="92" r="10" fill="#C95F7B"/><text x="82" y="99" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">09:20 母乳 20 分钟</text>
+      <circle cx="54" cy="142" r="10" fill="#7C6AD8"/><text x="82" y="149" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">10:10 睡眠中</text>
+      <circle cx="54" cy="192" r="10" fill="#349FD5"/><text x="82" y="199" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#21382E">12:00 尿布</text>
+    </g>
+  </g>
+</svg>

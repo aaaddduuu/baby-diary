@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">快速记录示意图</title>
+  <desc id="desc">展示母乳、配方奶、睡眠和尿布记录表单。</desc>
+  <rect width="1200" height="720" rx="32" fill="#FFF9F3"/>
+  <text x="86" y="92" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="48" font-weight="800" fill="#21382E">记录：把零碎照护变成清晰时间线</text>
+  <text x="86" y="144" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" fill="#5F7368">喂奶、睡眠、尿布都按宝宝护理场景设计，减少输入负担。</text>
+  <g transform="translate(96 204)">
+    <rect width="236" height="330" rx="28" fill="#FFFFFF"/>
+    <text x="28" y="48" font-size="34">🤱</text>
+    <text x="74" y="48" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" font-weight="800" fill="#21382E">母乳</text>
+    <rect x="28" y="86" width="180" height="48" rx="18" fill="#FFF1F5"/>
+    <text x="118" y="117" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#C95F7B">左 / 右 / 双侧</text>
+    <text x="28" y="186" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="54" font-weight="800" fill="#21382E">20</text>
+    <text x="98" y="184" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="22" fill="#7A8B80">分钟</text>
+    <text x="28" y="252" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">记录左右侧时长</text>
+    <text x="28" y="282" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">附加备注</text>
+  </g>
+  <g transform="translate(370 204)">
+    <rect width="236" height="330" rx="28" fill="#FFFFFF"/>
+    <text x="28" y="48" font-size="34">🍼</text>
+    <text x="74" y="48" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" font-weight="800" fill="#21382E">配方奶</text>
+    <rect x="28" y="86" width="64" height="44" rx="16" fill="#EDF7FF"/><text x="60" y="114" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="16" font-weight="700" fill="#3070A8">90</text>
+    <rect x="104" y="86" width="64" height="44" rx="16" fill="#EDF7FF"/><text x="136" y="114" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="16" font-weight="700" fill="#3070A8">120</text>
+    <text x="28" y="190" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="54" font-weight="800" fill="#21382E">120</text>
+    <text x="128" y="188" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="22" fill="#7A8B80">ml</text>
+    <text x="28" y="252" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">常用奶量记忆</text>
+    <text x="28" y="282" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">支持自定义输入</text>
+  </g>
+  <g transform="translate(644 204)">
+    <rect width="236" height="330" rx="28" fill="#FFFFFF"/>
+    <text x="28" y="48" font-size="34">🌙</text>
+    <text x="74" y="48" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" font-weight="800" fill="#21382E">睡眠</text>
+    <rect x="28" y="92" width="180" height="54" rx="18" fill="#F2EFFF"/>
+    <text x="118" y="126" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" font-weight="700" fill="#6F56C8">09:10 - 11:20</text>
+    <path d="M42 205 C78 168, 126 240, 178 190" fill="none" stroke="#7C6AD8" stroke-width="8" stroke-linecap="round"/>
+    <text x="28" y="252" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">开始/结束时间</text>
+    <text x="28" y="282" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">支持“睡眠中”</text>
+  </g>
+  <g transform="translate(918 204)">
+    <rect width="236" height="330" rx="28" fill="#FFFFFF"/>
+    <text x="28" y="48" font-size="34">🧷</text>
+    <text x="74" y="48" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="24" font-weight="800" fill="#21382E">尿布</text>
+    <rect x="28" y="86" width="84" height="44" rx="16" fill="#EAF8FF"/><text x="70" y="114" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="16" font-weight="700" fill="#349FD5">小便</text>
+    <rect x="124" y="86" width="84" height="44" rx="16" fill="#FFF7E9"/><text x="166" y="114" text-anchor="middle" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="16" font-weight="700" fill="#9D6A1A">大便</text>
+    <circle cx="58" cy="190" r="18" fill="#F5C451"/><circle cx="108" cy="190" r="18" fill="#78A65A"/><circle cx="158" cy="190" r="18" fill="#8B5E3C"/>
+    <text x="28" y="252" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">类型 + 颜色</text>
+    <text x="28" y="282" font-family="Arial,'PingFang SC','Microsoft YaHei',sans-serif" font-size="18" fill="#5F7368">形成日常护理参考</text>
+  </g>
+</svg>
