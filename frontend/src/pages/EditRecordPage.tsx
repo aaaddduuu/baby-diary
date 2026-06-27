@@ -8,6 +8,7 @@ import RecordTypeIcon from "../components/RecordTypeIcon";
 import type { RecordIconName } from "../components/RecordTypeIcon";
 import SleepTimePicker from "../components/SleepTimePicker";
 import { useBaby } from "../lib/BabyContext";
+import { isRecordTypeVisible, useCarePreferences } from "../lib/carePreferences";
 import { fetchRecordById, updateRecord } from "../lib/api";
 import {
   calcDuration,
@@ -151,6 +152,7 @@ export default function EditRecordPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { baby } = useBaby();
+  const { preferences } = useCarePreferences(baby);
 
   const [type, setType] = useState("breast_milk");
   const [loading, setLoading] = useState(false);
@@ -183,7 +185,13 @@ export default function EditRecordPage() {
   const [note, setNote] = useState("");
   const [recordedAt, setRecordedAt] = useState(getCurrentRecordTime);
   const diaperType = getDiaperTypeFromRecordType(type);
-  const shouldSelectDiaperColor = diaperType === "dirty" || diaperType === "both";
+  const shouldSelectDiaperColor = preferences.diaperDetails && (diaperType === "dirty" || diaperType === "both");
+  const visibleRecordTypes = useMemo(() => {
+    const visible = RECORD_TYPES.filter((recordType) => isRecordTypeVisible(recordType.type, preferences, "add"));
+    if (visible.some((recordType) => recordType.type === type)) return visible;
+    const currentType = RECORD_TYPES.find((recordType) => recordType.type === type);
+    return currentType ? [...visible, currentType] : visible;
+  }, [preferences, type]);
 
   useEffect(() => {
     if (!id) return;
@@ -308,7 +316,7 @@ export default function EditRecordPage() {
     } else if (diaperType) {
       data = {
         diaper_type: diaperType,
-        amount: diaperAmount,
+        ...(preferences.diaperDetails ? { amount: diaperAmount } : {}),
         ...(shouldSelectDiaperColor ? { color: diaperColor } : {}),
         ...(shouldSelectDiaperColor ? { texture: stoolTexture } : {}),
         note,
@@ -393,7 +401,7 @@ export default function EditRecordPage() {
               <div className="panel-note mt-1">选择这条记录所属的类型。</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {RECORD_TYPES.map((recordType) => (
+              {visibleRecordTypes.map((recordType) => (
                 <SelectorChip
                   key={recordType.type}
                   active={type === recordType.type}
@@ -570,7 +578,7 @@ export default function EditRecordPage() {
             </SectionCard>
           ) : null}
 
-          {diaperType ? (
+          {diaperType && preferences.diaperDetails ? (
             <SectionCard className="space-y-3 p-4">
               <div>
                 <div className="panel-title text-[17px]">尿布情况</div>

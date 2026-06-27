@@ -9,6 +9,7 @@ import type { RecordIconName } from "../components/RecordTypeIcon";
 import SleepTimePicker from "../components/SleepTimePicker";
 import { createRecord } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
+import { isRecordTypeVisible, useCarePreferences } from "../lib/carePreferences";
 import {
   calcDuration,
   ADD_RECORD_TYPES,
@@ -148,6 +149,11 @@ export default function AddRecordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { baby } = useBaby();
+  const { preferences } = useCarePreferences(baby);
+  const visibleRecordTypes = useMemo(
+    () => ADD_RECORD_TYPES.filter((recordType) => isRecordTypeVisible(recordType.type, preferences, "add")),
+    [preferences],
+  );
 
   const requestedType = searchParams.get("type") || "breast_milk";
   const normalizedType = requestedType === "diaper"
@@ -155,7 +161,7 @@ export default function AddRecordPage() {
     : requestedType === "diaper_both"
       ? "diaper_dirty"
       : requestedType;
-  const initialType = ADD_RECORD_TYPES.some((recordType) => recordType.type === normalizedType)
+  const initialType = visibleRecordTypes.some((recordType) => recordType.type === normalizedType)
     ? normalizedType
     : "breast_milk";
   const [type, setType] = useState(initialType);
@@ -194,7 +200,7 @@ export default function AddRecordPage() {
   const [note, setNote] = useState("");
   const [recordedAt, setRecordedAt] = useState(getCurrentRecordTime);
   const diaperType = getDiaperTypeFromRecordType(type);
-  const shouldSelectDiaperColor = diaperType === "dirty" || diaperType === "both";
+  const shouldSelectDiaperColor = preferences.diaperDetails && (diaperType === "dirty" || diaperType === "both");
 
   useEffect(() => {
     if (type === "formula") {
@@ -274,7 +280,7 @@ export default function AddRecordPage() {
     } else if (diaperType) {
       data = {
         diaper_type: diaperType,
-        amount: diaperAmount,
+        ...(preferences.diaperDetails ? { amount: diaperAmount } : {}),
         ...(shouldSelectDiaperColor ? { color: diaperColor } : {}),
         ...(shouldSelectDiaperColor ? { texture: stoolTexture } : {}),
         note,
@@ -347,7 +353,7 @@ export default function AddRecordPage() {
               <div className="panel-note mt-1">选择这次要记录的内容</div>
             </div>
             <div className="grid grid-cols-6 gap-3">
-              {ADD_RECORD_TYPES.map((recordType) => (
+              {visibleRecordTypes.map((recordType) => (
                 <SelectorChip
                   key={recordType.type}
                   active={type === recordType.type}
@@ -524,7 +530,7 @@ export default function AddRecordPage() {
             </SectionCard>
           ) : null}
 
-          {diaperType ? (
+          {diaperType && preferences.diaperDetails ? (
             <SectionCard className="space-y-3 p-4">
               <div>
                 <div className="panel-title text-[17px]">尿布情况</div>

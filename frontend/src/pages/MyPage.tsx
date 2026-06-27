@@ -4,6 +4,8 @@ import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import { useBaby } from "../lib/BabyContext";
 import { useAuth } from "../lib/AuthContext";
+import { CARE_PREFERENCE_ITEMS, useCarePreferences } from "../lib/carePreferences";
+import type { CarePreferenceKey } from "../lib/carePreferences";
 import { fetchRecords, fetchExpenses, fetchFamily, fetchGrowthRecords, fetchVaccines } from "../lib/api";
 import type { FamilyMember, GrowthRecord } from "../lib/api";
 
@@ -43,10 +45,41 @@ function getDefaultNickname(relation?: string): string {
   return map[relation || ""] || "宝宝的家长";
 }
 
+function ToggleRow({
+  checked,
+  description,
+  title,
+  onChange,
+}: {
+  checked: boolean;
+  description: string;
+  title: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 py-3 px-3.5 border-b border-border last:border-b-0">
+      <div className="flex-1">
+        <div className="text-sm font-medium text-gray-900">{title}</div>
+        <div className="mt-0.5 text-[10px] leading-4 text-gray-400">{description}</div>
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      <span className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-colors ${checked ? "bg-mint" : "bg-gray-200"}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
+      </span>
+    </label>
+  );
+}
+
 export default function MyPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { baby } = useBaby();
+  const { preferences, reset, setPreference } = useCarePreferences(baby);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
   const [monthExpense, setMonthExpense] = useState(0);
@@ -85,6 +118,7 @@ export default function MyPage() {
 
   const displayName = user?.name || getDefaultNickname(baby?.relation);
   const latestGrowth = growthRecords[0];
+  const isNewborn = baby ? calcDays(baby.birth_date) <= 30 : false;
 
   return (
     <Layout>
@@ -233,6 +267,31 @@ export default function MyPage() {
         <div className="mt-2.5 mx-3.5">
           <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">设置</div>
           <div className="bg-white rounded-card shadow-card overflow-hidden">
+            <div className="border-b border-border px-3.5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">护理项目显示</div>
+                  <div className="mt-0.5 text-[10px] leading-4 text-gray-400">
+                    {isNewborn ? "新生儿期默认显示更多观察项目。" : "宝宝已超过 30 天，可隐藏阶段性护理入口。"}
+                  </div>
+                </div>
+                <button
+                  onClick={reset}
+                  className="rounded-pill border border-[#DDEFE6] bg-[#F0FAF6] px-3 py-1.5 text-[11px] font-bold text-[#1A5C3A]"
+                >
+                  默认
+                </button>
+              </div>
+            </div>
+            {CARE_PREFERENCE_ITEMS.map((item) => (
+              <ToggleRow
+                key={item.key}
+                checked={preferences[item.key]}
+                title={item.title}
+                description={item.description}
+                onChange={(checked) => setPreference(item.key as CarePreferenceKey, checked)}
+              />
+            ))}
             <button
               onClick={() => {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);

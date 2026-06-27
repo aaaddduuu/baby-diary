@@ -8,6 +8,7 @@ import type { RecordIconName } from "../components/RecordTypeIcon";
 import { deleteRecord, fetchRecords } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
 import type { BabyRecord } from "../lib/api";
+import { type CarePreferences, useCarePreferences } from "../lib/carePreferences";
 import {
   CARE_ACTIONS,
   CORD_STATUSES,
@@ -150,7 +151,7 @@ function calcStats(records: BabyRecord[]) {
   };
 }
 
-function getCareAlerts(records: BabyRecord[]): string[] {
+function getCareAlerts(records: BabyRecord[], preferences: CarePreferences): string[] {
   const alerts: string[] = [];
   const latestTemp = records.find((record) => record.type === "temperature");
   if (latestTemp) {
@@ -166,11 +167,13 @@ function getCareAlerts(records: BabyRecord[]): string[] {
   });
   if (records.length > 0 && !hasUrine) alerts.push("今天还没有小便记录");
 
-  const abnormalCord = records.find((record) => {
-    if (record.type !== "cord_care") return false;
-    return safeJsonParse(record.data).status && safeJsonParse(record.data).status !== "dry";
-  });
-  if (abnormalCord) alerts.push(`脐部状态：${formatDetail(abnormalCord)}`);
+  if (preferences.cordCare) {
+    const abnormalCord = records.find((record) => {
+      if (record.type !== "cord_care") return false;
+      return safeJsonParse(record.data).status && safeJsonParse(record.data).status !== "dry";
+    });
+    if (abnormalCord) alerts.push(`脐部状态：${formatDetail(abnormalCord)}`);
+  }
 
   return alerts.slice(0, 3);
 }
@@ -186,7 +189,7 @@ function getLatestRecord(records: BabyRecord[], matcher: (record: BabyRecord) =>
   return records.find(matcher);
 }
 
-function buildHandoffFocus(records: BabyRecord[], alerts: string[]): string {
+function buildHandoffFocus(records: BabyRecord[], alerts: string[], preferences: CarePreferences): string {
   if (alerts.length > 0) return alerts[0];
 
   const activeSleep = records.find((record) => {
@@ -199,20 +202,22 @@ function buildHandoffFocus(records: BabyRecord[], alerts: string[]): string {
   const hasFeed = records.some((record) => record.type === "breast_milk" || record.type === "formula");
   if (!hasFeed && records.length > 0) return "今天还没有喂养记录";
 
-  const latestCare = records.find((record) => record.type === "cord_care" || record.type === "bath_touch");
+  const latestCare = records.find((record) =>
+    (preferences.cordCare && record.type === "cord_care") || (preferences.bathTouch && record.type === "bath_touch")
+  );
   if (latestCare) return `最近护理：${formatDetail(latestCare)}`;
 
   return records.length > 0 ? "今天照护节奏平稳，继续按需记录" : "今天还没有记录，接班后从第一次照护开始记";
 }
 
-function HandoffSummary({ records, alerts }: { records: BabyRecord[]; alerts: string[] }) {
+function HandoffSummary({ records, alerts, preferences }: { records: BabyRecord[]; alerts: string[]; preferences: CarePreferences }) {
   const latestFeed = getLatestRecord(records, (record) => record.type === "breast_milk" || record.type === "formula");
   const latestUrine = getLatestRecord(records, (record) => isDiaperType(record, "wet"));
   const latestStool = getLatestRecord(records, (record) => isDiaperType(record, "dirty"));
   const latestSleep = getLatestRecord(records, (record) => record.type === "sleep");
   const latestTemp = getLatestRecord(records, (record) => record.type === "temperature");
   const latestJaundice = getLatestRecord(records, (record) => record.type === "jaundice");
-  const focus = buildHandoffFocus(records, alerts);
+  const focus = buildHandoffFocus(records, alerts, preferences);
 
   const items = [
     { label: "上次喂养", record: latestFeed },
@@ -220,7 +225,7 @@ function HandoffSummary({ records, alerts }: { records: BabyRecord[]; alerts: st
     { label: "小便", record: latestUrine },
     { label: "大便", record: latestStool },
     { label: "体温", record: latestTemp },
-    { label: "黄疸", record: latestJaundice },
+    ...(preferences.jaundice ? [{ label: "黄疸", record: latestJaundice }] : []),
   ];
   const handoffText = [
     `家庭交接：${focus}`,
@@ -401,6 +406,7 @@ function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
 export default function RecordPage() {
   const navigate = useNavigate();
   const { baby } = useBaby();
+  const { preferences } = useCarePreferences(baby);
   const [records, setRecords] = useState<BabyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(getLocalDateString);
@@ -418,7 +424,10 @@ export default function RecordPage() {
   }, [baby, selectedDate]);
 
   const stats = useMemo(() => calcStats(records), [records]);
-  const alerts = useMemo(() => getCareAlerts(records), [records]);
+  const alerts = useMemo(() => getCareAlerts(records, preferences), [records, preferences]);
+  const visibleCareCount = useMemo(() => records.filter((record) =>
+    (preferences.cordCare && record.type === "cord_care") || (preferences.bathTouch && record.type === "bath_touch")
+  ).length, [preferences, records]);
   const latestTempValue = stats.latestTemp ? safeJsonParse(stats.latestTemp.data).value : null;
   const latestJaundiceValue = stats.latestJaundice ? safeJsonParse(stats.latestJaundice.data).value : null;
 
@@ -478,9 +487,15 @@ export default function RecordPage() {
           <HeroStatCard className="col-span-2" value={loading ? "--" : formatMinutes(stats.sleepMinutes)} label="睡眠" />
           <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.urineCount}`} label="小便" suffix={loading ? undefined : "次"} />
           <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.stoolCount}`} label="大便" suffix={loading ? undefined : "次"} />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : latestTempValue ? `${latestTempValue}` : "--"} label="体温" suffix={loading || !latestTempValue ? undefined : "°C"} />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : latestJaundiceValue ? `${latestJaundiceValue}` : "--"} label="黄疸" />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.careCount}`} label="护理" suffix={loading ? undefined : "次"} />
+          {preferences.temperatureShortcut ? (
+            <HeroStatCard className="col-span-2" value={loading ? "--" : latestTempValue ? `${latestTempValue}` : "--"} label="体温" suffix={loading || !latestTempValue ? undefined : "°C"} />
+          ) : null}
+          {preferences.jaundice ? (
+            <HeroStatCard className="col-span-2" value={loading ? "--" : latestJaundiceValue ? `${latestJaundiceValue}` : "--"} label="黄疸" />
+          ) : null}
+          {preferences.cordCare || preferences.bathTouch ? (
+            <HeroStatCard className="col-span-2" value={loading ? "--" : `${visibleCareCount}`} label="护理" suffix={loading ? undefined : "次"} />
+          ) : null}
           <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.medicineCount}`} label="用药" suffix={loading ? undefined : "次"} />
         </div>
       </Hero>
@@ -525,7 +540,7 @@ export default function RecordPage() {
           <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中…</div>
         ) : (
           <>
-            <HandoffSummary records={records} alerts={alerts} />
+            <HandoffSummary records={records} alerts={alerts} preferences={preferences} />
             {alerts.length > 0 ? (
               <div className="px-3.5 pt-3.5">
                 <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF8E8] px-4 py-3 text-sm leading-6 text-[#8A6220] shadow-card">

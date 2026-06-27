@@ -7,6 +7,7 @@ import RecordTypeIcon, { getDiaperIconName, getDiaperLabel } from "../components
 import type { RecordIconName } from "../components/RecordTypeIcon";
 import { useAuth } from "../lib/AuthContext";
 import { useBaby } from "../lib/BabyContext";
+import { isRecordTypeVisible, useCarePreferences } from "../lib/carePreferences";
 import { fetchExpenses, fetchFamily, fetchRecords, fetchVaccines } from "../lib/api";
 import type { BabyRecord, FamilyMember } from "../lib/api";
 import {
@@ -341,6 +342,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { baby } = useBaby();
+  const { preferences } = useCarePreferences(baby);
   const [todayCount, setTodayCount] = useState(0);
   const [monthExpense, setMonthExpense] = useState(0);
   const [hasRecords, setHasRecords] = useState(false);
@@ -397,7 +399,7 @@ export default function HomePage() {
   }, [baby, today, user?.id]);
 
   const quickRecordItems = useMemo(() => {
-    return ADD_RECORD_TYPES.map((item) => {
+    return ADD_RECORD_TYPES.filter((item) => isRecordTypeVisible(item.type, preferences, "quick")).map((item) => {
       const meta = QUICK_RECORD_META[item.type];
       const latest = getLatestRecordByType(allRecords, item.type);
       return {
@@ -409,7 +411,7 @@ export default function HomePage() {
         timeAgo: latest ? formatTimeAgo(latest.recorded_at) : null,
       };
     });
-  }, [allRecords]);
+  }, [allRecords, preferences]);
 
   if (!baby || pageLoading) {
     return (
