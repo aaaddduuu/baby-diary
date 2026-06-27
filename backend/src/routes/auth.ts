@@ -12,10 +12,23 @@ type Variables = {
 
 const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
+const FAMILY_RELATIONS = new Set(["妈妈", "爸爸", "奶奶", "爷爷", "外婆", "外公", "保姆", "其他"]);
+const RELATION_EMOJI: Record<string, string> = {
+  "妈妈": "👩",
+  "爸爸": "👨",
+  "奶奶": "👵",
+  "爷爷": "👴",
+  "外婆": "👵",
+  "外公": "👴",
+  "保姆": "🧑",
+  "其他": "🧑",
+};
+
 auth.post("/register", async (c) => {
   try {
     const body = await c.req.json();
-    const { phone, password, name } = body;
+    const { phone, password, name, invite_code, relation } = body;
+    const inviteCode = typeof invite_code === "string" ? invite_code.trim().toUpperCase() : "";
 
     if (!phone || !password) {
       return c.json({ success: false, data: null, message: "手机号和密码不能为空" }, 400);
@@ -33,9 +46,35 @@ auth.post("/register", async (c) => {
       return c.json({ success: false, data: null, message: "密码需包含字母和数字" }, 400);
     }
 
+    if (inviteCode && !/^[A-HJ-NP-Z2-9]{6}$/.test(inviteCode)) {
+      return c.json({ success: false, data: null, message: "请输入正确的6位邀请码" }, 400);
+    }
+
+    if (inviteCode && (typeof relation !== "string" || !FAMILY_RELATIONS.has(relation))) {
+      return c.json({ success: false, data: null, message: "请选择你与宝宝的关系" }, 400);
+    }
+
     const existing = await c.env.DB.prepare("SELECT id FROM users WHERE phone = ?").bind(phone).first();
     if (existing) {
       return c.json({ success: false, data: null, message: "该手机号已注册" }, 409);
+    }
+
+    const familyRecord = inviteCode
+      ? await c.env.DB.prepare("SELECT id, name FROM families WHERE invite_code = ?").bind(inviteCode).first()
+      : null;
+
+    if (inviteCode && !familyRecord) {
+      return c.json({ success: false, data: null, message: "邀请码无效" }, 404);
+    }
+
+    const familyBaby = familyRecord
+      ? await c.env.DB.prepare(
+        "SELECT * FROM babies WHERE family_id = ? ORDER BY created_at ASC LIMIT 1",
+      ).bind(familyRecord.id).first()
+      : null;
+
+    if (familyRecord && !familyBaby) {
+      return c.json({ success: false, data: null, message: "该家庭暂未创建宝宝" }, 409);
     }
 
     const encoder = new TextEncoder();
@@ -44,19 +83,40 @@ auth.post("/register", async (c) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const passwordHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 
-    const result = await c.env.DB.prepare(
-      "INSERT INTO users (phone, password_hash, name) VALUES (?, ?, ?)"
-    ).bind(phone, passwordHash, name || null).run();
+    const statements = [
+      c.env.DB.prepare(
+        "INSERT INTO users (phone, password_hash, name) VALUES (?, ?, ?)",
+      ).bind(phone, passwordHash, name || null),
+    ];
 
-    const userId = result.meta.last_row_id;
+    if (familyRecord) {
+      statements.push(
+        c.env.DB.prepare(
+          `INSERT INTO family_members (family_id, user_id, role, nickname, avatar_emoji)
+           SELECT ?, id, 'member', ?, ? FROM users WHERE phone = ?`,
+        ).bind(familyRecord.id, relation, RELATION_EMOJI[relation] || "🧑", phone),
+      );
+    }
+
+    const [userInsert] = await c.env.DB.batch(statements);
+    const userId = Number(userInsert.meta.last_row_id);
     const token = await sign({ sub: userId, phone, exp: Math.floor(Date.now() / 1000) + 86400 * 7, alg: "HS256" }, c.env.JWT_SECRET);
 
     return c.json({
       success: true,
-      data: { token, user: { id: userId, phone, name: name || null } }
+      data: {
+        token,
+        user: { id: userId, phone, name: name || null },
+        onboarding_required: !familyRecord,
+        baby: familyBaby,
+      },
     }, 201);
   } catch (e) {
-    return c.json({ success: false, data: null, message: String(e) }, 500);
+    console.error(JSON.stringify({ message: "register failed", error: e instanceof Error ? e.message : String(e) }));
+    if (String(e).includes("UNIQUE constraint failed: users.phone")) {
+      return c.json({ success: false, data: null, message: "该手机号已注册" }, 409);
+    }
+    return c.json({ success: false, data: null, message: "注册失败，请稍后重试" }, 500);
   }
 });
 
@@ -104,7 +164,7 @@ auth.get("/me", async (c) => {
 
     const token = authHeader.slice(7);
     const payload = await verify(token, c.env.JWT_SECRET, "HS256");
-    const userId = payload.sub;
+    const userId = Number(payload.sub);
 
     const user = await c.env.DB.prepare("SELECT id, phone, name, avatar, created_at FROM users WHERE id = ?").bind(userId).first();
     if (!user) {
@@ -126,7 +186,7 @@ auth.put("/profile", async (c) => {
 
     const token = authHeader.slice(7);
     const payload = await verify(token, c.env.JWT_SECRET, "HS256");
-    const userId = payload.sub;
+    const userId = Number(payload.sub);
 
     const body = await c.req.json();
     const { name, avatar } = body;

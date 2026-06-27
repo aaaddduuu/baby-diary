@@ -2,6 +2,10 @@ name = "baby-diary-backend"
 main = "src/index.ts"
 compatibility_date = "2025-05-01"
 
+routes = [
+  { pattern = "baby.rocdo.app/api/*", zone_name = "rocdo.app" }
+]
+
 [vars]
 JWT_SECRET = "669eabecb11b8a558b0341afdebee83eaedaf7716d6f8b07df29abae27061580"
 
@@ -9,3 +13,7 @@ JWT_SECRET = "669eabecb11b8a558b0341afdebee83eaedaf7716d6f8b07df29abae27061580"
 binding = "DB"
 database_name = "baby-diary-db"
 database_id = "9cda5705-fb59-4191-8f79-37df3e2ac431"
+
+[[r2_buckets]]
+binding = "MOMENT_PHOTOS"
+bucket_name = "baby-diary-moment-photos"

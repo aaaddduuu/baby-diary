@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import useAppScrollLock from "../hooks/useAppScrollLock";
 
 interface SleepTimePickerProps {
   visible: boolean;
@@ -78,7 +79,7 @@ function WheelColumn({
     <div className="relative flex-1 overflow-hidden">
       <div
         ref={ref}
-        className="h-48 overflow-y-auto snap-y snap-mandatory"
+        className="sleep-picker-wheel h-48 overflow-y-auto snap-y snap-mandatory"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
         onScroll={handleScroll}
       >
@@ -112,6 +113,8 @@ function WheelColumn({
 }
 
 export default function SleepTimePicker({ visible, title, value, onConfirm, onCancel }: SleepTimePickerProps) {
+  useAppScrollLock(visible);
+
   const dateOptions = generateDateOptions();
   const hours = generateHours();
   const minutes = generateMinutes();
@@ -133,10 +136,10 @@ export default function SleepTimePicker({ visible, title, value, onConfirm, onCa
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[100]" onClick={onCancel}>
+    <div className="picker-sheet-overlay fixed inset-0 z-[100]" onClick={onCancel}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[20px]"
+        className="picker-sheet-panel absolute bottom-0 left-0 right-0 bg-white rounded-t-[20px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">

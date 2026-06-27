@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import { login as apiLogin, register as apiRegister, getMe } from "../lib/api";
+import type { AuthData, RegisterInput } from "../lib/api";
 
 interface User {
   id: number;
@@ -13,7 +14,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
-  register: (phone: string, password: string, name?: string) => Promise<void>;
+  register: (data: RegisterInput) => Promise<AuthData>;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
 }
@@ -47,11 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }, []);
 
-  const register = useCallback(async (phone: string, password: string, name?: string) => {
-    const data = await apiRegister(phone, password, name);
+  const register = useCallback(async (input: RegisterInput) => {
+    const data = await apiRegister(input);
     localStorage.setItem("token", data.token);
     setToken(data.token);
     setUser(data.user);
+    return data;
   }, []);
 
   const logout = useCallback(() => {

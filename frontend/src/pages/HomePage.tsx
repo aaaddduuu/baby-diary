@@ -3,11 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Layout, { ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
+import RecordTypeIcon, { getDiaperIconName, getDiaperLabel } from "../components/RecordTypeIcon";
+import type { RecordIconName } from "../components/RecordTypeIcon";
 import { useAuth } from "../lib/AuthContext";
 import { useBaby } from "../lib/BabyContext";
-import { fetchExpenses, fetchFamily, fetchRecords } from "../lib/api";
+import { fetchExpenses, fetchFamily, fetchRecords, fetchVaccines } from "../lib/api";
 import type { BabyRecord, FamilyMember } from "../lib/api";
-import { RECORD_TYPES } from "./recordFormShared";
+import {
+  ADD_RECORD_TYPES,
+  CARE_ACTIONS,
+  CORD_STATUSES,
+  DIAPER_AMOUNTS,
+  getDiaperTypeFromRecordType,
+  getElapsedCalendarDays,
+  getLocalDateString,
+  JAUNDICE_SITES,
+  STOOL_TEXTURES,
+  TEMPERATURE_SITES,
+} from "./recordFormShared";
 
 type IconName =
   | "milk"
@@ -26,18 +39,23 @@ type IconName =
   | "spark";
 
 type RecordMeta = {
-  icon: IconName;
+  icon: RecordIconName;
   label: string;
   tone: string;
   surface: string;
 };
 
 const TYPE_META: Record<string, RecordMeta> = {
-  breast_milk: { icon: "milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
-  formula: { icon: "bottle", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
-  sleep: { icon: "moon", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
-  diaper: { icon: "drop", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
-  growth: { icon: "scale", label: "成长", tone: "#3FA37F", surface: "#EAF8F2" },
+  breast_milk: { icon: "breast_milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  formula: { icon: "formula", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
+  sleep: { icon: "sleep", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
+  diaper: { icon: "diaper_wet", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
+  medicine: { icon: "medicine", label: "吃药", tone: "#D06A7A", surface: "#FFF0F2" },
+  growth: { icon: "growth", label: "成长", tone: "#3FA37F", surface: "#EAF8F2" },
+  temperature: { icon: "temperature", label: "体温", tone: "#D66B4D", surface: "#FFF1EA" },
+  jaundice: { icon: "jaundice", label: "黄疸", tone: "#C88A17", surface: "#FFF8D8" },
+  cord_care: { icon: "cord_care", label: "脐护", tone: "#2F9B73", surface: "#EAF8F2" },
+  bath_touch: { icon: "bath_touch", label: "洗护", tone: "#3C8ACD", surface: "#EAF5FF" },
 };
 
 const sectionVariants = {
@@ -170,9 +188,17 @@ function safeJsonParse(value: string): Record<string, any> {
   }
 }
 
+function optionLabel(options: readonly { value: string; label: string }[], value: unknown, fallback = "未记录"): string {
+  return options.find((option) => option.value === value)?.label || fallback;
+}
+
 function formatTime(isoStr: string): string {
   const d = new Date(isoStr);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function getRecordLocalDate(recordedAt: string): string {
+  return getLocalDateString(new Date(recordedAt));
 }
 
 function formatDetail(record: BabyRecord): string {
@@ -188,29 +214,66 @@ function formatDetail(record: BabyRecord): string {
   if (record.type === "sleep") return data.end ? `${formatTime(data.start)} - ${formatTime(data.end)}` : "睡眠中";
 
   if (record.type === "diaper") {
-    const types: Record<string, string> = { wet: "小便", dirty: "大便", both: "都有" };
-    return types[data.diaper_type] || "尿布";
+    const amount = data.amount ? ` · ${optionLabel(DIAPER_AMOUNTS, data.amount)}` : "";
+    if (data.diaper_type !== "dirty" && data.diaper_type !== "both") return `已记录${amount}`;
+    const colors: Record<string, string> = { yellow: "黄色", green: "绿色", brown: "棕色", other: "其他" };
+    const texture = data.texture ? ` · ${optionLabel(STOOL_TEXTURES, data.texture)}` : "";
+    return `${colors[String(data.color)] || "未记录颜色"}${texture}${amount}`;
+  }
+
+  if (record.type === "medicine") {
+    const name = String(data.medicine_name || "药品");
+    return data.dose ? `${name} · ${data.dose}` : name;
+  }
+
+  if (record.type === "temperature") {
+    return `${data.value ?? "--"}°C · ${optionLabel(TEMPERATURE_SITES, data.site, "体温")}`;
+  }
+
+  if (record.type === "jaundice") {
+    return `${data.value ?? "--"} · ${optionLabel(JAUNDICE_SITES, data.site, "部位未记")}`;
+  }
+
+  if (record.type === "cord_care") {
+    return optionLabel(CORD_STATUSES, data.status, "已护理");
+  }
+
+  if (record.type === "bath_touch") {
+    return optionLabel(CARE_ACTIONS, data.action, "已洗护");
   }
 
   return String(data.note || "");
 }
 
-function calcDays(birthDate: string): number {
-  const birth = new Date(birthDate);
-  const now = new Date();
-  return Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
+function getRecordVisual(record: BabyRecord): RecordMeta {
+  const base = TYPE_META[record.type] || TYPE_META.growth;
+  if (record.type !== "diaper") return base;
+
+  const diaperType = safeJsonParse(record.data).diaper_type;
+  if (diaperType === "dirty") {
+    return { icon: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#A66B3D", surface: "#FFF4E8" };
+  }
+  if (diaperType === "both") {
+    return { icon: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#C58A28", surface: "#FFF7DF" };
+  }
+  return { icon: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#349FD5", surface: "#EAF8FF" };
 }
 
 function calcAge(birthDate: string): string {
-  const days = calcDays(birthDate);
+  const days = getElapsedCalendarDays(birthDate);
   const months = Math.floor(days / 30);
   const remainDays = days % 30;
   return months > 0 ? `${months}个月${remainDays}天` : `${days}天`;
 }
 
 function getLatestRecordByType(records: BabyRecord[], type: string): BabyRecord | undefined {
+  const diaperType = getDiaperTypeFromRecordType(type);
   return records
-    .filter((record) => record.type === type)
+    .filter((record) => {
+      if (!diaperType) return record.type === type;
+      if (record.type !== "diaper") return false;
+      return (safeJsonParse(record.data).diaper_type || "wet") === diaperType;
+    })
     .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
 }
 
@@ -245,13 +308,19 @@ function SectionHeader({ title, action, onAction }: { title: string; action?: st
 }
 
 const QUICK_RECORD_META: Record<
-  (typeof RECORD_TYPES)[number]["type"],
-  { icon: IconName; tone: string; surface: string }
+  (typeof ADD_RECORD_TYPES)[number]["type"],
+  { icon: RecordIconName; tone: string; surface: string }
 > = {
-  breast_milk: { icon: "milk", tone: "#C95F7B", surface: "#FFF1F5" },
-  formula: { icon: "bottle", tone: "#4D92D8", surface: "#EDF7FF" },
-  sleep: { icon: "moon", tone: "#7C6AD8", surface: "#F2EFFF" },
-  diaper: { icon: "drop", tone: "#349FD5", surface: "#EAF8FF" },
+  breast_milk: { icon: "breast_milk", tone: "#C95F7B", surface: "#FFF1F5" },
+  formula: { icon: "formula", tone: "#4D92D8", surface: "#EDF7FF" },
+  sleep: { icon: "sleep", tone: "#7C6AD8", surface: "#F2EFFF" },
+  diaper_wet: { icon: "diaper_wet", tone: "#349FD5", surface: "#EAF8FF" },
+  diaper_dirty: { icon: "diaper_dirty", tone: "#A66B3D", surface: "#FFF4E8" },
+  medicine: { icon: "medicine", tone: "#D06A7A", surface: "#FFF0F2" },
+  temperature: { icon: "temperature", tone: "#D66B4D", surface: "#FFF1EA" },
+  jaundice: { icon: "jaundice", tone: "#C88A17", surface: "#FFF8D8" },
+  cord_care: { icon: "cord_care", tone: "#2F9B73", surface: "#EAF8F2" },
+  bath_touch: { icon: "bath_touch", tone: "#3C8ACD", surface: "#EAF5FF" },
 };
 
 function EmptyIllustration() {
@@ -280,11 +349,11 @@ export default function HomePage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [currentRelation, setCurrentRelation] = useState("家人");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const todayRecords = useMemo(
     () =>
       allRecords
-        .filter((record) => record.recorded_at.startsWith(today))
+        .filter((record) => getRecordLocalDate(record.recorded_at) === today)
         .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()),
     [allRecords, today],
   );
@@ -298,22 +367,17 @@ export default function HomePage() {
       fetchRecords(baby.id).then((records) => {
         setAllRecords(records);
         if (records.length > 0) setHasRecords(true);
-        setTodayCount(records.filter((record) => record.recorded_at.startsWith(today)).length);
+        setTodayCount(records.filter((record) => getRecordLocalDate(record.recorded_at) === today).length);
       }),
       fetchExpenses(baby.id, `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`).then((expenses) => {
         setMonthExpense(expenses.reduce((sum, expense) => sum + expense.amount, 0));
         if (expenses.length > 0) setHasRecords(true);
       }),
-      fetch(`/api/babies/${baby.id}/vaccines`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.success || !Array.isArray(data.data)) return;
-
+      fetchVaccines(baby.id)
+        .then((vaccines) => {
           const now = new Date();
           const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-          const upcoming = data.data.filter((v: { status: string; date: string | null }) => {
+          const upcoming = vaccines.filter((v) => {
             if (v.status !== "planned" || !v.date) return false;
             const vaccineDate = new Date(v.date);
             return vaccineDate >= now && vaccineDate <= thirtyDaysLater;
@@ -333,7 +397,7 @@ export default function HomePage() {
   }, [baby, today, user?.id]);
 
   const quickRecordItems = useMemo(() => {
-    return RECORD_TYPES.map((item) => {
+    return ADD_RECORD_TYPES.map((item) => {
       const meta = QUICK_RECORD_META[item.type];
       const latest = getLatestRecordByType(allRecords, item.type);
       return {
@@ -358,7 +422,7 @@ export default function HomePage() {
   }
 
   const statCards = [
-    { icon: "calendar" as const, value: `${calcDays(baby.birth_date)}`, suffix: "天", label: "出生天数", tone: "#2FA47E" },
+    { icon: "calendar" as const, value: `${getElapsedCalendarDays(baby.birth_date)}`, suffix: "天", label: "出生天数", tone: "#2FA47E" },
     { icon: "note" as const, value: `${todayCount}`, suffix: "次", label: "今日记录", tone: "#E77751" },
     { icon: "wallet" as const, value: `¥${monthExpense.toLocaleString()}`, label: "本月花费", tone: "#8067D8" },
   ];
@@ -373,7 +437,7 @@ export default function HomePage() {
   return (
     <Layout className="bg-[radial-gradient(circle_at_18%_0%,#FFF4DF_0,transparent_34%),radial-gradient(circle_at_88%_18%,#DCF5EA_0,transparent_31%),var(--page-bg)]">
       <motion.div initial="hidden" animate="show" variants={pageVariants} className="flex min-h-0 flex-1 flex-col">
-        <div className="relative flex-shrink-0 overflow-hidden px-4 pb-5 pt-12">
+        <div className="relative flex-shrink-0 overflow-hidden px-4 pb-5 pt-8">
           <div className="absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" style={{ background: "var(--header-grad)" }} />
           <div className="header-readable-overlay absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" />
           <div className="absolute right-[-42px] top-8 h-36 w-36 rounded-full bg-white/18 blur-2xl" />
@@ -381,7 +445,7 @@ export default function HomePage() {
 
           <motion.div variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }} className="relative z-10">
             <div className="mb-5 flex items-center justify-between gap-3">
-              <button onClick={() => navigate("/family")} className="min-w-0 flex-1 border-none bg-transparent p-0 text-left">
+              <button onClick={() => navigate("/moments")} className="min-w-0 flex-1 border-none bg-transparent p-0 text-left">
                 <div className="mb-2 inline-flex items-center gap-1.5 rounded-pill border border-white/50 bg-white/20 px-3 py-1 text-[11px] font-bold text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,.45)] backdrop-blur-md">
                   <Icon name="spark" className="h-3.5 w-3.5" />
                   今日小日记                </div>
@@ -427,7 +491,7 @@ export default function HomePage() {
           <div className="space-y-6 px-4 pt-2">
             <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
               <SectionHeader title="快速记录" action="查看全部" onAction={() => navigate("/record")} />
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-6 gap-2.5">
                 {quickRecordItems.map((item) => (
                   <motion.button
                     key={item.label}
@@ -435,16 +499,34 @@ export default function HomePage() {
                     whileHover={{ y: -2 }}
                     transition={{ type: "spring", stiffness: 420, damping: 28 }}
                     onClick={() => navigate(item.path)}
-                    className="min-h-[108px] rounded-[22px] border border-white bg-white/86 px-1.5 py-3 text-center shadow-soft"
+                    className="col-span-2 min-h-[108px] rounded-[22px] border border-white bg-white/86 px-1.5 py-3 text-center shadow-soft"
                   >
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[18px]" style={{ backgroundColor: item.surface, color: item.tone }}>
-                      <Icon name={item.iconName} className="h-6 w-6" />
+                      <RecordTypeIcon name={item.iconName} className="h-6 w-6" />
                     </div>
                     <div className="mt-2.5 text-xs font-black text-gray-700">{item.label}</div>
-                    <div className="mt-1 min-h-[14px] text-[10px] font-semibold text-gray-400">{item.timeAgo || "一键添加"}</div>
+                    <div className="mt-1 min-h-[14px] text-[10px] font-semibold text-gray-400">{item.timeAgo || "快速填写"}</div>
                   </motion.button>
                 ))}
               </div>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
+              <button
+                type="button"
+                onClick={() => navigate("/moments")}
+                className="relative w-full overflow-hidden rounded-[26px] border border-white bg-[linear-gradient(135deg,#E7F7EF_0%,#FFF6E8_100%)] p-5 text-left shadow-soft"
+              >
+                <div className="absolute -right-6 -top-7 h-24 w-24 rounded-full bg-white/50 blur-sm" />
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="mb-2 inline-flex rounded-pill bg-white/75 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-[#4C7E68]">每日照片与备注</div>
+                    <div className="text-lg font-black text-[#21382E]">成长时光</div>
+                    <div className="mt-1 max-w-[230px] text-xs font-semibold leading-5 text-[#6B7C72]">把今天喜欢的几张照片，留给未来慢慢看。</div>
+                  </div>
+                  <div className="shrink-0 rounded-[16px] bg-[#2D9B6A] px-3.5 py-2.5 text-xs font-black text-white shadow-[0_10px_20px_rgba(45,155,106,.2)]">打开时光轴</div>
+                </div>
+              </button>
             </motion.section>
 
             <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
@@ -480,21 +562,21 @@ export default function HomePage() {
               {todayRecords.length > 0 ? (
                 <div className="space-y-3">
                   {todayRecords.slice(0, 6).map((record, index) => {
-                    const meta = TYPE_META[record.type] || TYPE_META.growth;
+                    const meta = getRecordVisual(record);
                     const detail = formatDetail(record);
                     const note = safeJsonParse(record.data).note;
 
                     return (
-                      <div key={record.id} className="grid grid-cols-[54px_1fr] gap-3">
-                        <div className="pt-4 text-right">
+                      <div key={record.id} className="grid grid-cols-[46px_minmax(0,1fr)] gap-5">
+                        <div className="pt-4 pr-1 text-right">
                           <div className="font-tabular text-xs font-black text-gray-400">{formatTime(record.recorded_at)}</div>
                           {index === 0 && <div className="mt-1 text-[10px] font-bold text-mint-dark">最新</div>}
                         </div>
                         <div className="relative rounded-[24px] border border-white bg-white/88 p-3.5 shadow-soft">
-                          <span className="absolute -left-[22px] top-5 h-3.5 w-3.5 rounded-full border-[3px] border-[#F8F7EF]" style={{ backgroundColor: meta.tone }} />
+                          <span className="absolute -left-[18px] top-5 h-3.5 w-3.5 rounded-full border-[3px] border-[#F8F7EF]" style={{ backgroundColor: meta.tone }} />
                           <div className="flex items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px]" style={{ backgroundColor: meta.surface, color: meta.tone }}>
-                              <Icon name={meta.icon} className="h-[22px] w-[22px]" />
+                              <RecordTypeIcon name={meta.icon} className="h-[22px] w-[22px]" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="text-sm font-black text-gray-900">{meta.label}</div>
@@ -516,7 +598,7 @@ export default function HomePage() {
                     <EmptyIllustration />
                   </div>
                   <div className="mb-1 text-base font-black text-gray-700">今天还没有记录</div>
-                  <div className="mb-5 text-xs font-medium leading-relaxed text-gray-400">从一次喂奶、睡眠或尿布开始，慢慢拼出 {baby.name} 的一天。</div>
+                  <div className="mb-5 text-xs font-medium leading-relaxed text-gray-400">从一次喂奶、睡眠、尿布或吃药开始，慢慢拼出 {baby.name} 的一天。</div>
                   <motion.button
                     animate={{ scale: [1, 1.035, 1] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
@@ -532,7 +614,7 @@ export default function HomePage() {
             {!hasRecords && (
               <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }} className="rounded-[26px] border border-[#F3DFC6] bg-[#FFF8E8] p-4 shadow-soft">
                 <div className="text-sm font-black text-gray-900">从第一条记录开始</div>
-                <div className="mt-1 text-xs leading-relaxed text-gray-500">记录喂养、睡眠、尿布和花费，之后首页会自动汇总最近的节奏。</div>
+                <div className="mt-1 text-xs leading-relaxed text-gray-500">记录喂养、睡眠、尿布、吃药和花费，之后首页会自动汇总最近的节奏。</div>
               </motion.section>
             )}
 
@@ -544,5 +626,3 @@ export default function HomePage() {
     </Layout>
   );
 }
-
-

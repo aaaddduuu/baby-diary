@@ -3,20 +3,35 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Layout, { ScrollArea, SectionCard } from "../components/Layout";
 import NumberKeyboard from "../components/NumberKeyboard";
+import RecordTimeField from "../components/RecordTimeField";
+import RecordTypeIcon from "../components/RecordTypeIcon";
+import type { RecordIconName } from "../components/RecordTypeIcon";
 import SleepTimePicker from "../components/SleepTimePicker";
 import { useBaby } from "../lib/BabyContext";
 import { fetchRecordById, updateRecord } from "../lib/api";
 import {
   calcDuration,
+  CARE_ACTIONS,
+  CORD_STATUSES,
+  DIAPER_AMOUNTS,
   DIAPER_COLORS,
-  DIAPER_TYPES,
   FEEDING_SIDES,
   FORMULA_PRESETS,
   formatDateTimeDisplay,
+  getApiRecordType,
+  getCurrentRecordTime,
   getDefaultTime,
+  getDiaperTypeFromRecordType,
+  getRecordEntryType,
+  isRecordTimeInFuture,
   isEndBeforeStart,
+  JAUNDICE_SITES,
   parseDateTime,
+  parseRecordedAt,
   RECORD_TYPES,
+  STOOL_TEXTURES,
+  TEMPERATURE_SITES,
+  toRecordedAtISOString,
   toLocalDateTimeString,
 } from "./recordFormShared";
 
@@ -26,13 +41,19 @@ function SectionLabel({ children }: { children: string }) {
 
 function SelectorChip({
   active,
-  icon,
+  iconName,
   label,
+  tone,
+  surface,
+  className = "",
   onClick,
 }: {
   active: boolean;
-  icon: string;
+  iconName: RecordIconName;
   label: string;
+  tone: string;
+  surface: string;
+  className?: string;
   onClick: () => void;
 }) {
   return (
@@ -43,14 +64,13 @@ function SelectorChip({
         active
           ? "border-[#5BC4A0] bg-[#F0FAF6] shadow-[0_10px_24px_rgba(74,184,154,.14)]"
           : "border-white/70 bg-white/80"
-      }`}
+      } ${className}`}
     >
       <span
-        className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl ${
-          active ? "bg-[#DDF5EA]" : "bg-[#F6F3EA]"
-        }`}
+        className="flex h-11 w-11 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: surface, color: tone }}
       >
-        {icon}
+        <RecordTypeIcon name={iconName} className="h-6 w-6" />
       </span>
       <span className={`text-sm font-semibold ${active ? "text-[#1A5C3A]" : "text-[#526258]"}`}>{label}</span>
     </button>
@@ -149,9 +169,21 @@ export default function EditRecordPage() {
   const [sleeping, setSleeping] = useState(false);
   const [showPicker, setShowPicker] = useState<"start" | "end" | null>(null);
 
-  const [diaperType, setDiaperType] = useState("wet");
   const [diaperColor, setDiaperColor] = useState("yellow");
+  const [diaperAmount, setDiaperAmount] = useState("medium");
+  const [stoolTexture, setStoolTexture] = useState("pasty");
+  const [medicineName, setMedicineName] = useState("");
+  const [medicineDose, setMedicineDose] = useState("");
+  const [temperatureValue, setTemperatureValue] = useState("36.5");
+  const [temperatureSite, setTemperatureSite] = useState("armpit");
+  const [jaundiceValue, setJaundiceValue] = useState("");
+  const [jaundiceSite, setJaundiceSite] = useState("forehead");
+  const [cordStatus, setCordStatus] = useState("dry");
+  const [careAction, setCareAction] = useState("bath");
   const [note, setNote] = useState("");
+  const [recordedAt, setRecordedAt] = useState(getCurrentRecordTime);
+  const diaperType = getDiaperTypeFromRecordType(type);
+  const shouldSelectDiaperColor = diaperType === "dirty" || diaperType === "both";
 
   useEffect(() => {
     if (!id) return;
@@ -159,8 +191,9 @@ export default function EditRecordPage() {
     setFetchLoading(true);
     fetchRecordById(Number(id))
       .then((record) => {
-        setType(record.type);
+        setRecordedAt(parseRecordedAt(record.recorded_at));
         const recordData = JSON.parse(record.data);
+        setType(getRecordEntryType(record.type, recordData.diaper_type));
 
         if (record.type === "breast_milk") {
           setBreastSide(recordData.side || "both");
@@ -174,8 +207,22 @@ export default function EditRecordPage() {
           setSleepEnd(parseDateTime(recordData.end || recordData.start));
           setSleeping(recordData.sleeping || false);
         } else if (record.type === "diaper") {
-          setDiaperType(recordData.diaper_type || "wet");
           setDiaperColor(recordData.color || "yellow");
+          setDiaperAmount(recordData.amount || "medium");
+          setStoolTexture(recordData.texture || "pasty");
+        } else if (record.type === "medicine") {
+          setMedicineName(recordData.medicine_name || "");
+          setMedicineDose(recordData.dose || "");
+        } else if (record.type === "temperature") {
+          setTemperatureValue(recordData.value ? String(recordData.value) : "36.5");
+          setTemperatureSite(recordData.site || "armpit");
+        } else if (record.type === "jaundice") {
+          setJaundiceValue(recordData.value ? String(recordData.value) : "");
+          setJaundiceSite(recordData.site || "forehead");
+        } else if (record.type === "cord_care") {
+          setCordStatus(recordData.status || "dry");
+        } else if (record.type === "bath_touch") {
+          setCareAction(recordData.action || "bath");
         }
 
         if (recordData.note) {
@@ -198,8 +245,18 @@ export default function EditRecordPage() {
 
   const canSubmit = useMemo(() => {
     if (type === "sleep" && !sleeping && isInvalidTime) return false;
+    if (type === "medicine" && !medicineName.trim()) return false;
+    if (type === "temperature") {
+      const value = Number(temperatureValue);
+      if (!Number.isFinite(value) || value < 30 || value > 43) return false;
+    }
+    if (type === "jaundice") {
+      const value = Number(jaundiceValue);
+      if (!Number.isFinite(value) || value < 0) return false;
+    }
+    if (isRecordTimeInFuture(recordedAt)) return false;
     return true;
-  }, [isInvalidTime, sleeping, type]);
+  }, [isInvalidTime, jaundiceValue, medicineName, recordedAt, sleeping, temperatureValue, type]);
 
   const handleFormulaPreset = (ml: number) => {
     setFormulaMl(ml);
@@ -248,12 +305,50 @@ export default function EditRecordPage() {
       const startStr = toLocalDateTimeString(sleepStart);
       const endStr = sleeping ? null : toLocalDateTimeString(sleepEnd);
       data = { start: startStr, end: endStr, sleeping, note };
-    } else if (type === "diaper") {
-      data = { diaper_type: diaperType, color: diaperColor, note };
+    } else if (diaperType) {
+      data = {
+        diaper_type: diaperType,
+        amount: diaperAmount,
+        ...(shouldSelectDiaperColor ? { color: diaperColor } : {}),
+        ...(shouldSelectDiaperColor ? { texture: stoolTexture } : {}),
+        note,
+      };
+    } else if (type === "medicine") {
+      data = {
+        medicine_name: medicineName.trim(),
+        dose: medicineDose.trim(),
+        note,
+      };
+    } else if (type === "temperature") {
+      data = {
+        value: Number(temperatureValue),
+        site: temperatureSite,
+        note,
+      };
+    } else if (type === "jaundice") {
+      data = {
+        value: Number(jaundiceValue),
+        site: jaundiceSite,
+        note,
+      };
+    } else if (type === "cord_care") {
+      data = {
+        status: cordStatus,
+        note,
+      };
+    } else if (type === "bath_touch") {
+      data = {
+        action: careAction,
+        note,
+      };
     }
 
     try {
-      await updateRecord(Number(id), { type, data });
+      await updateRecord(Number(id), {
+        type: getApiRecordType(type),
+        data,
+        recorded_at: toRecordedAtISOString(recordedAt),
+      });
       navigate("/record");
     } catch (err) {
       setError(err instanceof Error ? err.message : "更新失败");
@@ -295,27 +390,36 @@ export default function EditRecordPage() {
           <SectionCard className="p-4">
             <div className="mb-3">
               <div className="panel-title text-[17px]">记录类型</div>
-              <div className="panel-note mt-1">和新增页使用同一套卡片风格</div>
+              <div className="panel-note mt-1">选择这条记录所属的类型。</div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {RECORD_TYPES.map((recordType) => (
                 <SelectorChip
                   key={recordType.type}
                   active={type === recordType.type}
-                  icon={recordType.icon}
+                  iconName={recordType.iconName}
                   label={recordType.label}
+                  tone={recordType.tone}
+                  surface={recordType.surface}
+                  className={recordType.type === "diaper_both" ? "col-span-2" : ""}
                   onClick={() => setType(recordType.type)}
                 />
               ))}
             </div>
           </SectionCard>
 
+          <RecordTimeField
+            value={recordedAt}
+            onChange={setRecordedAt}
+            invalid={isRecordTimeInFuture(recordedAt)}
+          />
+
           {type === "breast_milk" ? (
             <>
               <SectionCard className="p-4">
                 <div className="mb-3">
                   <div className="panel-title text-[17px]">喂养方式</div>
-                  <div className="panel-note mt-1">左右侧选择保持一致</div>
+                  <div className="panel-note mt-1">选择本次喂养的侧别。</div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {FEEDING_SIDES.map((option) => (
@@ -333,7 +437,7 @@ export default function EditRecordPage() {
               <SectionCard className="space-y-3 p-4">
                 <div>
                   <div className="panel-title text-[17px]">时长</div>
-                  <div className="panel-note mt-1">在干净的白卡中调整分钟数</div>
+                  <div className="panel-note mt-1">调整每一侧的喂养分钟数。</div>
                 </div>
                 {(breastSide === "left" || breastSide === "both") && (
                   <AmountAdjuster
@@ -390,7 +494,7 @@ export default function EditRecordPage() {
               <SectionCard className="p-4">
                 <div className="mb-3">
                   <div className="panel-title text-[17px]">奶量</div>
-                  <div className="panel-note mt-1">继续用原来的加减逻辑</div>
+                  <div className="panel-note mt-1">按 10ml 增减，或选择常用奶量。</div>
                 </div>
                 <AmountAdjuster
                   label="配方奶"
@@ -407,7 +511,7 @@ export default function EditRecordPage() {
             <SectionCard className="space-y-4 p-4">
               <div>
                 <div className="panel-title text-[17px]">睡眠时间</div>
-                <div className="panel-note mt-1">时间输入集中在一组白卡里，编辑时更直观</div>
+                <div className="panel-note mt-1">调整开始和结束时间，也可以标记为睡眠中。</div>
               </div>
 
               <div className="space-y-3 rounded-[22px] bg-white p-4 shadow-soft">
@@ -466,30 +570,30 @@ export default function EditRecordPage() {
             </SectionCard>
           ) : null}
 
-          {type === "diaper" ? (
-            <>
-              <SectionCard className="p-4">
-                <div className="mb-3">
-                  <div className="panel-title text-[17px]">类型</div>
-                  <div className="panel-note mt-1">和记录页主流程保持统一的卡片语言</div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {DIAPER_TYPES.map((option) => (
-                    <MiniCardButton
-                      key={option.value}
-                      active={diaperType === option.value}
-                      icon={option.icon}
-                      label={option.label}
-                      onClick={() => setDiaperType(option.value)}
-                    />
-                  ))}
-                </div>
-              </SectionCard>
+          {diaperType ? (
+            <SectionCard className="space-y-3 p-4">
+              <div>
+                <div className="panel-title text-[17px]">尿布情况</div>
+                <div className="panel-note mt-1">调整本次量的多少。</div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {DIAPER_AMOUNTS.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={diaperAmount === option.value}
+                    label={option.label}
+                    onClick={() => setDiaperAmount(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
 
+          {shouldSelectDiaperColor ? (
               <SectionCard className="space-y-3 p-4">
                 <div>
-                  <div className="panel-title text-[17px]">颜色</div>
-                  <div className="panel-note mt-1">颜色状态卡更接近主页面的视觉节奏</div>
+                  <div className="panel-title text-[17px]">大便观察</div>
+                  <div className="panel-note mt-1">调整颜色和性状，便于后续观察。</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {DIAPER_COLORS.map((option) => (
@@ -523,6 +627,17 @@ export default function EditRecordPage() {
                   ))}
                 </div>
 
+                <div className="grid grid-cols-3 gap-3">
+                  {STOOL_TEXTURES.map((option) => (
+                    <MiniCardButton
+                      key={option.value}
+                      active={stoolTexture === option.value}
+                      label={option.label}
+                      onClick={() => setStoolTexture(option.value)}
+                    />
+                  ))}
+                </div>
+
                 {diaperColor === "green" ? (
                   <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF7E7] px-4 py-3 text-sm leading-6 text-[#8A6220]">
                     {
@@ -531,13 +646,162 @@ export default function EditRecordPage() {
                   </div>
                 ) : null}
               </SectionCard>
-            </>
+          ) : null}
+
+          {type === "temperature" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">体温</div>
+                <div className="panel-note mt-1">调整温度和测量部位。</div>
+              </div>
+              <div className="rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">温度（°C）</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="30"
+                    max="43"
+                    step="0.1"
+                    value={temperatureValue}
+                    onChange={(event) => setTemperatureValue(event.target.value.slice(0, 5))}
+                    placeholder="36.5"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {TEMPERATURE_SITES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={temperatureSite === option.value}
+                    label={option.label}
+                    onClick={() => setTemperatureSite(option.value)}
+                  />
+                ))}
+              </div>
+              {Number(temperatureValue) >= 37.5 ? (
+                <div className="rounded-[20px] border border-[#F3C6C6] bg-[#FFF4F4] px-4 py-3 text-sm leading-6 text-danger">
+                  体温偏高，建议结合宝宝精神状态继续观察。
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          {type === "jaundice" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">黄疸观察</div>
+                <div className="panel-note mt-1">调整本次测量数值和部位。</div>
+              </div>
+              <div className="rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">黄疸数值</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.1"
+                    value={jaundiceValue}
+                    onChange={(event) => setJaundiceValue(event.target.value.slice(0, 5))}
+                    placeholder="例如：12.4"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {JAUNDICE_SITES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={jaundiceSite === option.value}
+                    label={option.label}
+                    onClick={() => setJaundiceSite(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {type === "cord_care" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">脐部护理</div>
+                <div className="panel-note mt-1">调整消毒后的脐部状态。</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {CORD_STATUSES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={cordStatus === option.value}
+                    label={option.label}
+                    onClick={() => setCordStatus(option.value)}
+                  />
+                ))}
+              </div>
+              {cordStatus !== "dry" ? (
+                <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF7E7] px-4 py-3 text-sm leading-6 text-[#8A6220]">
+                  脐部状态异常时，建议持续观察并记录变化。
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          {type === "bath_touch" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">洗护操作</div>
+                <div className="panel-note mt-1">调整洗澡、抚触或组合护理。</div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {CARE_ACTIONS.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={careAction === option.value}
+                    label={option.label}
+                    onClick={() => setCareAction(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {type === "medicine" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">服药信息</div>
+                <div className="panel-note mt-1">修改药品名称或本次实际用量。</div>
+              </div>
+              <div className="space-y-3 rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">药品名称</span>
+                  <input
+                    type="text"
+                    value={medicineName}
+                    onChange={(event) => setMedicineName(event.target.value.slice(0, 60))}
+                    placeholder="例如：布洛芬混悬液"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                    maxLength={60}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">本次用量（选填）</span>
+                  <input
+                    type="text"
+                    value={medicineDose}
+                    onChange={(event) => setMedicineDose(event.target.value.slice(0, 40))}
+                    placeholder="例如：2.5 ml、半片、1袋"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                    maxLength={40}
+                  />
+                </label>
+              </div>
+            </SectionCard>
           ) : null}
 
           <SectionCard className="p-4">
             <div className="mb-3">
               <div className="panel-title text-[17px]">备注</div>
-              <div className="panel-note mt-1">只改界面，不改原有备注提交逻辑</div>
+              <div className="panel-note mt-1">补充这次记录的细节，留空也可以。</div>
             </div>
             <div className="rounded-[22px] bg-white p-4 shadow-soft">
               <textarea

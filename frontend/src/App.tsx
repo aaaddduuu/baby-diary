@@ -16,6 +16,9 @@ import AddMemberPage from "./pages/AddMemberPage";
 import JoinFamilyPage from "./pages/JoinFamilyPage";
 import MyPage from "./pages/MyPage";
 import ProfilePage from "./pages/ProfilePage";
+import MomentsPage from "./pages/MomentsPage";
+import MomentEditorPage from "./pages/MomentEditorPage";
+import SharedMomentsPage from "./pages/SharedMomentsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -88,11 +91,23 @@ function AppRoutes() {
       <Route path="/join/:code" element={<JoinFamilyPage />} />
       <Route path="/my" element={<BabyRequiredRoute><MyPage /></BabyRequiredRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      <Route path="/moments" element={<BabyRequiredRoute><MomentsPage /></BabyRequiredRoute>} />
+      <Route path="/moments/new" element={<BabyRequiredRoute><MomentEditorPage /></BabyRequiredRoute>} />
+      <Route path="/moments/:id/edit" element={<BabyRequiredRoute><MomentEditorPage /></BabyRequiredRoute>} />
     </Routes>
   );
 }
 
 export default function App() {
+  if (window.location.pathname.startsWith("/share/moments/")) {
+    return (
+      <Routes>
+        <Route path="/share/moments/:token" element={<SharedMomentsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <AuthProvider>
       <BabyProvider>

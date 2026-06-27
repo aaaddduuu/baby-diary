@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import Layout, { Fab, Hero, ScrollArea, SectionCard } from "../components/Layout";
 import Header from "../components/Header";
 import DatePickerSheet from "../components/DatePickerSheet";
+import DateFieldButton from "../components/DateFieldButton";
 import { useBaby } from "../lib/BabyContext";
 import { createVaccine, deleteVaccine, fetchVaccines, updateVaccine } from "../lib/api";
 import type { VaccineRecord as Vaccine } from "../lib/api";
+import { getLocalDateString } from "./recordFormShared";
 
 const DEFAULT_VACCINES = [
   { name: "乙肝疫苗 第1针", age: "出生后 24h" },
@@ -340,7 +342,7 @@ export default function VaccinePage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">接种信息</div>
-                <div className="panel-note mt-1">统一放进浅色内容区，避免旧版强对比状态块。</div>
+                <div className="panel-note mt-1">记录接种日期、医院和当前状态，方便之后回看。</div>
               </div>
 
               <div className="space-y-3 rounded-[22px] bg-white p-4 shadow-soft">
@@ -396,7 +398,7 @@ export default function VaccinePage() {
       <Layout className="secondary-page">
         <Header
           title={editMode ? "编辑疫苗" : "新增疫苗"}
-          subtitle={editMode ? "调整状态、日期和接种医院" : "把计划针次和自定义疫苗都整理进统一表单"}
+          subtitle={editMode ? "调整状态、日期和接种医院" : "记录计划针次或自定义疫苗"}
           variant="hero"
           back
           onBack={resetForm}
@@ -432,7 +434,7 @@ export default function VaccinePage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">疫苗信息</div>
-                <div className="panel-note mt-1">状态 chips、日期选择和输入框都用统一卡片式表单。</div>
+                <div className="panel-note mt-1">填写名称、接种状态、日期和医院。</div>
               </div>
 
               <div className="space-y-4 rounded-[22px] bg-white p-4 shadow-soft">
@@ -468,14 +470,11 @@ export default function VaccinePage() {
 
                 <div className="space-y-2">
                   <FieldLabel>{newStatus === "completed" ? "接种日期" : "计划接种日期"}</FieldLabel>
-                  <button
-                    type="button"
+                  <DateFieldButton
+                    value={newDate}
+                    ariaLabel={newStatus === "completed" ? "选择接种日期" : "选择计划接种日期"}
                     onClick={() => setShowDatePicker(true)}
-                    className="flex h-12 w-full items-center justify-between rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E]"
-                  >
-                    <span>{newDate || "点击选择日期"}</span>
-                    <span className="text-[#7A8B80]">选择</span>
-                  </button>
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -514,7 +513,8 @@ export default function VaccinePage() {
 
         <DatePickerSheet
           visible={showDatePicker}
-          value={newDate || new Date().toISOString().slice(0, 10)}
+          value={newDate || getLocalDateString()}
+          maxDate={newStatus === "completed" ? getLocalDateString() : undefined}
           onConfirm={(date) => {
             setNewDate(date);
             setShowDatePicker(false);
@@ -530,7 +530,7 @@ export default function VaccinePage() {
       <Hero className="pb-8 pt-4">
         <Header
           title="疫苗记录"
-          subtitle="把计划、提醒和已接种状态统一整理在一个二级页里。"
+          subtitle="查看待接种和已完成的疫苗记录。"
           variant="transparent"
           back
         />
@@ -557,7 +557,7 @@ export default function VaccinePage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">列表筛选</div>
-                <div className="panel-note mt-1">主列表统一用 chips 切换 upcoming / others / completed 的视觉状态。</div>
+                <div className="panel-note mt-1">按接种状态筛选，快速查看待接种和已完成记录。</div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <StatusChip active={listFilter === "all"} label="全部" onClick={() => setListFilter("all")} />
@@ -597,7 +597,7 @@ export default function VaccinePage() {
             <SectionCard className="overflow-hidden">
               <div className="border-b border-[#EFE8DD] px-4 py-4">
                 <div className="panel-title text-[17px]">{upcoming.length > 0 ? "其他疫苗" : "疫苗清单"}</div>
-                <div className="panel-note mt-1">所有记录统一收进卡片列表，状态和自定义标签保持同一语言。</div>
+                <div className="panel-note mt-1">查看疫苗名称、状态和计划日期。</div>
               </div>
 
               {filteredOthers.length > 0 ? (

@@ -9,7 +9,7 @@ import { FAMILY_RELATIONS, RelationChip, SectionLabel } from "./familyFlowShared
 export default function JoinFamilyPage() {
   const navigate = useNavigate();
   const { code } = useParams<{ code?: string }>();
-  const { refresh } = useBaby();
+  const { refresh, setBaby } = useBaby();
   const [inviteCode, setInviteCode] = useState("");
   const [relation, setRelation] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,9 +38,10 @@ export default function JoinFamilyPage() {
     setError("");
 
     try {
-      await joinFamily({ invite_code: inviteCode.trim(), relation });
+      const result = await joinFamily({ invite_code: inviteCode.trim(), relation });
       setSuccess(true);
       await refresh();
+      if (result.baby) setBaby(result.baby);
       setTimeout(() => navigate("/family"), 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加入失败");
@@ -133,7 +134,7 @@ export default function JoinFamilyPage() {
             <div className="mb-3">
               <div className="panel-title text-[17px]">你的关系</div>
               <div className="panel-note mt-1">
-                使用和主流程一致的关系卡片，让家庭角色更直观
+                选择你在这个家庭中的身份，之后会显示在记录来源里。
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

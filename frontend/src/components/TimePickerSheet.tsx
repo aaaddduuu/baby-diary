@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Picker from "react-mobile-picker";
+import useAppScrollLock from "../hooks/useAppScrollLock";
 
 interface TimePickerSheetProps {
   visible: boolean;
@@ -15,54 +17,34 @@ function generateRange(start: number, end: number): string[] {
   return arr;
 }
 
-function WheelColumn({
-  items,
-  selected,
-  onSelect,
-}: {
-  items: string[];
-  selected: string;
-  onSelect: (val: string) => void;
-}) {
-  return (
-    <div className="flex-1 overflow-hidden">
-      <div className="h-[180px] overflow-y-auto scrollbar-none">
-        <div className="h-[70px]" />
-        {items.map((val) => (
-          <div
-            key={val}
-            className={`h-[40px] flex items-center justify-center cursor-pointer transition-all ${
-              val === selected ? "font-bold text-gray-900 text-xl" : "text-gray-400 text-base"
-            }`}
-            onClick={() => onSelect(val)}
-          >
-            {val}
-          </div>
-        ))}
-        <div className="h-[70px]" />
-      </div>
-    </div>
-  );
-}
-
 export default function TimePickerSheet({ visible, value, onConfirm, onCancel }: TimePickerSheetProps) {
-  const [hour, setHour] = useState(() => value ? value.split(":")[0] : "09");
-  const [minute, setMinute] = useState(() => value ? value.split(":")[1] : "00");
+  useAppScrollLock(visible);
+
+  const [pickerValue, setPickerValue] = useState(() => {
+    const [hour = "09", minute = "00"] = value ? value.split(":") : [];
+    return { hour, minute };
+  });
 
   const hours = generateRange(0, 23);
   const minutes = generateRange(0, 59);
 
+  useEffect(() => {
+    if (!visible || !value) return;
+    const [nextHour = "09", nextMinute = "00"] = value.split(":");
+    setPickerValue({ hour: nextHour, minute: nextMinute });
+  }, [value, visible]);
+
   const handleConfirm = () => {
-    onConfirm(`${hour}:${minute}`);
+    onConfirm(`${pickerValue.hour}:${pickerValue.minute}`);
   };
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[100]" onClick={onCancel}>
+    <div className="picker-sheet-overlay fixed inset-0 z-[100]" onClick={onCancel}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[20px]"
+        className="picker-sheet-panel absolute bottom-0 left-0 right-0 bg-white rounded-t-[20px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -81,10 +63,35 @@ export default function TimePickerSheet({ visible, value, onConfirm, onCancel }:
           </button>
         </div>
 
-        <div className="flex items-center justify-center px-4" style={{ height: 180 }}>
-          <WheelColumn items={hours} selected={hour} onSelect={setHour} />
-          <div className="text-2xl font-bold text-gray-900 mx-2">:</div>
-          <WheelColumn items={minutes} selected={minute} onSelect={setMinute} />
+        <div className="picker-sheet-wheel px-4 py-2">
+          <Picker
+            value={pickerValue}
+            onChange={(next) => setPickerValue(next as { hour: string; minute: string })}
+            wheelMode="natural"
+          >
+            <Picker.Column name="hour">
+              {hours.map((hour) => (
+                <Picker.Item key={hour} value={hour}>
+                  {({ selected }) => (
+                    <div className={`py-1 text-center ${selected ? "text-lg font-bold text-gray-900" : "text-base text-gray-400"}`}>
+                      {hour} 时
+                    </div>
+                  )}
+                </Picker.Item>
+              ))}
+            </Picker.Column>
+            <Picker.Column name="minute">
+              {minutes.map((minute) => (
+                <Picker.Item key={minute} value={minute}>
+                  {({ selected }) => (
+                    <div className={`py-1 text-center ${selected ? "text-lg font-bold text-gray-900" : "text-base text-gray-400"}`}>
+                      {minute} 分
+                    </div>
+                  )}
+                </Picker.Item>
+              ))}
+            </Picker.Column>
+          </Picker>
         </div>
 
         <div className="h-[env(safe-area-inset-bottom)]" />

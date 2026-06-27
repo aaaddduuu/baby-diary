@@ -30,6 +30,16 @@ babies.use("*", async (c, next) => {
   }
 });
 
+async function checkBabyAccess(db: D1Database, userId: number, babyId: number): Promise<boolean> {
+  const baby = await db.prepare("SELECT id FROM babies WHERE id = ? AND user_id = ?").bind(babyId, userId).first();
+  if (baby) return true;
+
+  const membership = await db.prepare(
+    "SELECT fm.id FROM family_members fm JOIN babies b ON b.family_id = fm.family_id WHERE fm.user_id = ? AND b.id = ?",
+  ).bind(userId, babyId).first();
+  return Boolean(membership);
+}
+
 babies.get("/", async (c) => {
   try {
     const userId = c.get("userId");
@@ -38,7 +48,7 @@ babies.get("/", async (c) => {
       `SELECT DISTINCT b.* FROM babies b
        LEFT JOIN family_members fm ON b.family_id = fm.family_id
        WHERE b.user_id = ? OR fm.user_id = ?
-       ORDER BY b.created_at DESC`
+       ORDER BY b.created_at ASC`
     ).bind(userId, userId).all();
 
     return c.json({ success: true, data: results });
@@ -147,11 +157,7 @@ babies.get("/:id/growth", async (c) => {
     const userId = c.get("userId");
     const babyId = c.req.param("id");
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -171,11 +177,7 @@ babies.post("/:id/growth", async (c) => {
     const babyId = c.req.param("id");
     const body = await c.req.json();
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -203,11 +205,7 @@ babies.put("/:id/growth/:growthId", async (c) => {
     const growthId = c.req.param("growthId");
     const body = await c.req.json();
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -244,11 +242,7 @@ babies.delete("/:id/growth/:growthId", async (c) => {
     const babyId = c.req.param("id");
     const growthId = c.req.param("growthId");
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -272,11 +266,7 @@ babies.get("/:id/vaccines", async (c) => {
     const userId = c.get("userId");
     const babyId = c.req.param("id");
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -296,11 +286,7 @@ babies.post("/:id/vaccines", async (c) => {
     const babyId = c.req.param("id");
     const body = await c.req.json();
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -328,11 +314,7 @@ babies.put("/:id/vaccines/:vaccineId", async (c) => {
     const vaccineId = c.req.param("vaccineId");
     const body = await c.req.json();
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 
@@ -369,11 +351,7 @@ babies.delete("/:id/vaccines/:vaccineId", async (c) => {
     const babyId = c.req.param("id");
     const vaccineId = c.req.param("vaccineId");
 
-    const baby = await c.env.DB.prepare(
-      "SELECT id FROM babies WHERE id = ? AND user_id = ?"
-    ).bind(babyId, userId).first();
-
-    if (!baby) {
+    if (!(await checkBabyAccess(c.env.DB, userId, Number(babyId)))) {
       return c.json({ success: false, data: null, message: "宝宝不存在" }, 404);
     }
 

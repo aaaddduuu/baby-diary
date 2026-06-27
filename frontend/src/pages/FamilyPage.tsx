@@ -193,7 +193,7 @@ export default function FamilyPage() {
             value={members.some((member) => member.user_id === user?.id) ? "已加入" : "未加入"}
             note="当前账号在家庭中的状态"
           />
-          <StatTile label="协作方式" value="同步" note="成长记录会实时共享" />
+          <StatTile label="协作方式" value="同步" note="刷新后可查看最新记录" />
         </div>
       </Hero>
 
@@ -219,7 +219,7 @@ export default function FamilyPage() {
             <SectionCard className="overflow-hidden">
               <div className="border-b border-[#EFE8DD] px-4 py-4">
                 <div className="panel-title text-[17px]">成员列表</div>
-                <div className="panel-note mt-1">成员卡片统一用浅色背景和克制的状态标签，保留清晰但不过度尖锐的移除动作。</div>
+                <div className="panel-note mt-1">查看正在一起照护宝宝的家人和他们的加入状态。</div>
               </div>
 
               {members.length > 0 ? (
@@ -274,7 +274,7 @@ export default function FamilyPage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">操作入口</div>
-                <div className="panel-note mt-1">邀请和输入邀请码都做成统一风格的入口卡片，避免旧版杂色按钮。</div>
+                <div className="panel-note mt-1">邀请新成员，或使用已有邀请码加入另一个家庭空间。</div>
               </div>
 
               <div className="space-y-3">

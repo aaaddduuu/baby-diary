@@ -8,6 +8,7 @@
 
 ### 核心功能
 - **生活记录** - 母乳、配方奶、睡眠、尿布等日常记录
+- **成长时光** - 每日上传照片与备注，按时间线回看宝宝的每一天
 - **成长追踪** - 体重、身高、头围数据与 WHO 标准对比
 - **疫苗管理** - 国家计划疫苗 + 自定义疫苗接种记录
 - **费用管理** - 宝宝相关支出分类记录与统计
@@ -138,6 +139,14 @@ baby-diary/
 - `POST /api/records` - 创建记录
 - `PUT /api/records/:id` - 更新记录
 - `DELETE /api/records/:id` - 删除记录
+
+### 成长时光接口
+- `GET /api/moments` - 按宝宝和月份获取成长时间线
+- `POST /api/moments` - 创建或保存当天日记
+- `PUT /api/moments/:id` - 编辑日期与备注
+- `DELETE /api/moments/:id` - 删除日记和关联照片
+- `POST /api/moments/:id/photos` - 上传私有照片到 R2
+- `GET /api/moments/photos/:photoId` - 经家庭权限验证后读取照片
 
 ### 支出接口
 - `GET /api/expenses` - 获取支出列表

@@ -8,7 +8,10 @@ interface LayoutProps {
 
 export default function Layout({ children, className = "" }: LayoutProps) {
   return (
-    <div className={`flex h-full min-h-0 flex-col overflow-y-auto bg-cream text-ink ${className}`}>
+    <div
+      data-app-scroll-container
+      className={`flex h-full min-h-0 flex-col overflow-y-auto bg-cream text-ink ${className}`}
+    >
       {children}
     </div>
   );
@@ -21,7 +24,7 @@ interface ScrollAreaProps {
 
 export function ScrollArea({ children, className = "" }: ScrollAreaProps) {
   return (
-    <div className={`min-h-0 flex-1 overflow-y-auto ${className}`}>
+    <div data-app-scroll-container className={`min-h-0 flex-1 overflow-y-auto ${className}`}>
       {children}
     </div>
   );
@@ -43,7 +46,7 @@ interface HeroProps {
 
 export function Hero({ children, className = "" }: HeroProps) {
   return (
-    <div className={`hero-shell hero-shell-banner px-[18px] pb-6 pt-12 ${className}`}>
+    <div className={`hero-shell hero-shell-banner px-[18px] pb-6 pt-8 ${className}`}>
       <div className="header-readable-overlay absolute inset-0" />
       <div className="hero-shell-glow absolute inset-0" />
       {children}

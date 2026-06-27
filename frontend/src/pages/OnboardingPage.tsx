@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout, { ScrollArea } from "../components/Layout";
 import DatePickerSheet from "../components/DatePickerSheet";
+import DateFieldButton from "../components/DateFieldButton";
 import { createBaby } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
+import { getLocalDateString } from "./recordFormShared";
 
 const RELATIONS = [
   { value: "妈妈", emoji: "👩" },
@@ -57,12 +59,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [y, m, d] = dateStr.split("-");
-    return `${y}年${Number(m)}月${Number(d)}日`;
-  };
-
   return (
     <Layout>
       <div className="h-[200px] flex items-center justify-center relative overflow-hidden flex-shrink-0" style={{ background: "var(--header-grad)" }}>
@@ -97,12 +93,11 @@ export default function OnboardingPage() {
 
           <div className="mb-3.5">
             <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">出生日期</div>
-            <button
-              className="w-full h-11 bg-gray-100 border-[1.5px] border-border rounded-sm px-3.5 text-sm font-sans text-left text-gray-900 outline-none focus:border-mint cursor-pointer"
+            <DateFieldButton
+              value={birthDate}
+              ariaLabel="选择宝宝出生日期"
               onClick={() => setShowDatePicker(true)}
-            >
-              {birthDate ? formatDate(birthDate) : "点击选择日期"}
-            </button>
+            />
           </div>
 
           <div className="mb-3.5">
@@ -191,6 +186,7 @@ export default function OnboardingPage() {
       <DatePickerSheet
         visible={showDatePicker}
         value={birthDate}
+        maxDate={getLocalDateString()}
         onConfirm={(date) => {
           setBirthDate(date);
           setShowDatePicker(false);

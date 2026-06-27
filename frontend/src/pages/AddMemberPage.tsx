@@ -158,7 +158,7 @@ export default function AddMemberPage() {
                 <div className="mb-3">
                   <div className="panel-title text-[17px]">关系选择</div>
                   <div className="panel-note mt-1">
-                    沿用主流程的卡片选择器，清楚标记这位家人的身份
+                    选择这位家人在家庭中的身份。
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -3,19 +3,32 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "../components/Header";
 import Layout, { ScrollArea, SectionCard } from "../components/Layout";
 import NumberKeyboard from "../components/NumberKeyboard";
+import RecordTimeField from "../components/RecordTimeField";
+import RecordTypeIcon from "../components/RecordTypeIcon";
+import type { RecordIconName } from "../components/RecordTypeIcon";
 import SleepTimePicker from "../components/SleepTimePicker";
 import { createRecord } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
 import {
   calcDuration,
+  ADD_RECORD_TYPES,
+  CARE_ACTIONS,
+  CORD_STATUSES,
+  DIAPER_AMOUNTS,
   DIAPER_COLORS,
-  DIAPER_TYPES,
   FEEDING_SIDES,
   FORMULA_PRESETS,
   formatDateTimeDisplay,
+  getApiRecordType,
+  getCurrentRecordTime,
   getDefaultTime,
+  getDiaperTypeFromRecordType,
+  isRecordTimeInFuture,
   isEndBeforeStart,
-  RECORD_TYPES,
+  JAUNDICE_SITES,
+  STOOL_TEXTURES,
+  TEMPERATURE_SITES,
+  toRecordedAtISOString,
   toLocalDateTimeString,
 } from "./recordFormShared";
 
@@ -25,13 +38,19 @@ function SectionLabel({ children }: { children: string }) {
 
 function SelectorChip({
   active,
-  icon,
+  iconName,
   label,
+  tone,
+  surface,
+  className = "",
   onClick,
 }: {
   active: boolean;
-  icon: string;
+  iconName: RecordIconName;
   label: string;
+  tone: string;
+  surface: string;
+  className?: string;
   onClick: () => void;
 }) {
   return (
@@ -42,14 +61,13 @@ function SelectorChip({
         active
           ? "border-[#5BC4A0] bg-[#F0FAF6] shadow-[0_10px_24px_rgba(74,184,154,.14)]"
           : "border-white/70 bg-white/80"
-      }`}
+      } ${className}`}
     >
       <span
-        className={`flex h-11 w-11 items-center justify-center rounded-2xl text-xl ${
-          active ? "bg-[#DDF5EA]" : "bg-[#F6F3EA]"
-        }`}
+        className="flex h-11 w-11 items-center justify-center rounded-2xl"
+        style={{ backgroundColor: surface, color: tone }}
       >
-        {icon}
+        <RecordTypeIcon name={iconName} className="h-6 w-6" />
       </span>
       <span className={`text-sm font-semibold ${active ? "text-[#1A5C3A]" : "text-[#526258]"}`}>{label}</span>
     </button>
@@ -131,7 +149,15 @@ export default function AddRecordPage() {
   const [searchParams] = useSearchParams();
   const { baby } = useBaby();
 
-  const initialType = searchParams.get("type") || "breast_milk";
+  const requestedType = searchParams.get("type") || "breast_milk";
+  const normalizedType = requestedType === "diaper"
+    ? "diaper_wet"
+    : requestedType === "diaper_both"
+      ? "diaper_dirty"
+      : requestedType;
+  const initialType = ADD_RECORD_TYPES.some((recordType) => recordType.type === normalizedType)
+    ? normalizedType
+    : "breast_milk";
   const [type, setType] = useState(initialType);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -154,9 +180,21 @@ export default function AddRecordPage() {
   const [sleeping, setSleeping] = useState(false);
   const [showPicker, setShowPicker] = useState<"start" | "end" | null>(null);
 
-  const [diaperType, setDiaperType] = useState("wet");
   const [diaperColor, setDiaperColor] = useState("yellow");
+  const [diaperAmount, setDiaperAmount] = useState("medium");
+  const [stoolTexture, setStoolTexture] = useState("pasty");
+  const [medicineName, setMedicineName] = useState("");
+  const [medicineDose, setMedicineDose] = useState("");
+  const [temperatureValue, setTemperatureValue] = useState("36.5");
+  const [temperatureSite, setTemperatureSite] = useState("armpit");
+  const [jaundiceValue, setJaundiceValue] = useState("");
+  const [jaundiceSite, setJaundiceSite] = useState("forehead");
+  const [cordStatus, setCordStatus] = useState("dry");
+  const [careAction, setCareAction] = useState("bath");
   const [note, setNote] = useState("");
+  const [recordedAt, setRecordedAt] = useState(getCurrentRecordTime);
+  const diaperType = getDiaperTypeFromRecordType(type);
+  const shouldSelectDiaperColor = diaperType === "dirty" || diaperType === "both";
 
   useEffect(() => {
     if (type === "formula") {
@@ -176,8 +214,18 @@ export default function AddRecordPage() {
 
   const canSubmit = useMemo(() => {
     if (type === "sleep" && !sleeping && isInvalidTime) return false;
+    if (type === "medicine" && !medicineName.trim()) return false;
+    if (type === "temperature") {
+      const value = Number(temperatureValue);
+      if (!Number.isFinite(value) || value < 30 || value > 43) return false;
+    }
+    if (type === "jaundice") {
+      const value = Number(jaundiceValue);
+      if (!Number.isFinite(value) || value < 0) return false;
+    }
+    if (isRecordTimeInFuture(recordedAt)) return false;
     return true;
-  }, [isInvalidTime, sleeping, type]);
+  }, [isInvalidTime, jaundiceValue, medicineName, recordedAt, sleeping, temperatureValue, type]);
 
   const handleFormulaPreset = (ml: number) => {
     setFormulaMl(ml);
@@ -223,16 +271,50 @@ export default function AddRecordPage() {
       const startStr = toLocalDateTimeString(sleepStart);
       const endStr = sleeping ? null : toLocalDateTimeString(sleepEnd);
       data = { start: startStr, end: endStr, sleeping, note };
-    } else if (type === "diaper") {
-      data = { diaper_type: diaperType, color: diaperColor, note };
+    } else if (diaperType) {
+      data = {
+        diaper_type: diaperType,
+        amount: diaperAmount,
+        ...(shouldSelectDiaperColor ? { color: diaperColor } : {}),
+        ...(shouldSelectDiaperColor ? { texture: stoolTexture } : {}),
+        note,
+      };
+    } else if (type === "medicine") {
+      data = {
+        medicine_name: medicineName.trim(),
+        dose: medicineDose.trim(),
+        note,
+      };
+    } else if (type === "temperature") {
+      data = {
+        value: Number(temperatureValue),
+        site: temperatureSite,
+        note,
+      };
+    } else if (type === "jaundice") {
+      data = {
+        value: Number(jaundiceValue),
+        site: jaundiceSite,
+        note,
+      };
+    } else if (type === "cord_care") {
+      data = {
+        status: cordStatus,
+        note,
+      };
+    } else if (type === "bath_touch") {
+      data = {
+        action: careAction,
+        note,
+      };
     }
 
     try {
       await createRecord({
         baby_id: baby.id,
-        type,
+        type: getApiRecordType(type),
         data,
-        recorded_at: new Date().toISOString(),
+        recorded_at: toRecordedAtISOString(recordedAt),
       });
       navigate("/record");
     } catch (err) {
@@ -264,18 +346,27 @@ export default function AddRecordPage() {
               <div className="panel-title text-[17px]">记录类型</div>
               <div className="panel-note mt-1">选择这次要记录的内容</div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {RECORD_TYPES.map((recordType) => (
+            <div className="grid grid-cols-6 gap-3">
+              {ADD_RECORD_TYPES.map((recordType) => (
                 <SelectorChip
                   key={recordType.type}
                   active={type === recordType.type}
-                  icon={recordType.icon}
+                  iconName={recordType.iconName}
                   label={recordType.label}
+                  tone={recordType.tone}
+                  surface={recordType.surface}
+                  className="col-span-2"
                   onClick={() => setType(recordType.type)}
                 />
               ))}
             </div>
           </SectionCard>
+
+          <RecordTimeField
+            value={recordedAt}
+            onChange={setRecordedAt}
+            invalid={isRecordTimeInFuture(recordedAt)}
+          />
 
           {type === "breast_milk" ? (
             <>
@@ -433,30 +524,30 @@ export default function AddRecordPage() {
             </SectionCard>
           ) : null}
 
-          {type === "diaper" ? (
-            <>
-              <SectionCard className="p-4">
-                <div className="mb-3">
-                  <div className="panel-title text-[17px]">类型</div>
-                  <div className="panel-note mt-1">按今天的情况选择记录内容</div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {DIAPER_TYPES.map((option) => (
-                    <MiniCardButton
-                      key={option.value}
-                      active={diaperType === option.value}
-                      icon={option.icon}
-                      label={option.label}
-                      onClick={() => setDiaperType(option.value)}
-                    />
-                  ))}
-                </div>
-              </SectionCard>
+          {diaperType ? (
+            <SectionCard className="space-y-3 p-4">
+              <div>
+                <div className="panel-title text-[17px]">尿布情况</div>
+                <div className="panel-note mt-1">记录本次量的多少，方便一天结束后汇总。</div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {DIAPER_AMOUNTS.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={diaperAmount === option.value}
+                    label={option.label}
+                    onClick={() => setDiaperAmount(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
 
+          {shouldSelectDiaperColor ? (
               <SectionCard className="space-y-3 p-4">
                 <div>
-                  <div className="panel-title text-[17px]">颜色</div>
-                  <div className="panel-note mt-1">颜色卡和主页面图标语言保持一致</div>
+                  <div className="panel-title text-[17px]">大便观察</div>
+                  <div className="panel-note mt-1">记录颜色和性状，便于后续观察</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {DIAPER_COLORS.map((option) => (
@@ -490,6 +581,17 @@ export default function AddRecordPage() {
                   ))}
                 </div>
 
+                <div className="grid grid-cols-3 gap-3">
+                  {STOOL_TEXTURES.map((option) => (
+                    <MiniCardButton
+                      key={option.value}
+                      active={stoolTexture === option.value}
+                      label={option.label}
+                      onClick={() => setStoolTexture(option.value)}
+                    />
+                  ))}
+                </div>
+
                 {diaperColor === "green" ? (
                   <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF7E7] px-4 py-3 text-sm leading-6 text-[#8A6220]">
                     {
@@ -498,7 +600,156 @@ export default function AddRecordPage() {
                   </div>
                 ) : null}
               </SectionCard>
-            </>
+          ) : null}
+
+          {type === "temperature" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">体温</div>
+                <div className="panel-note mt-1">填写温度并选择测量部位。</div>
+              </div>
+              <div className="rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">温度（°C）</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="30"
+                    max="43"
+                    step="0.1"
+                    value={temperatureValue}
+                    onChange={(event) => setTemperatureValue(event.target.value.slice(0, 5))}
+                    placeholder="36.5"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {TEMPERATURE_SITES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={temperatureSite === option.value}
+                    label={option.label}
+                    onClick={() => setTemperatureSite(option.value)}
+                  />
+                ))}
+              </div>
+              {Number(temperatureValue) >= 37.5 ? (
+                <div className="rounded-[20px] border border-[#F3C6C6] bg-[#FFF4F4] px-4 py-3 text-sm leading-6 text-danger">
+                  体温偏高，建议结合宝宝精神状态继续观察。
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          {type === "jaundice" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">黄疸观察</div>
+                <div className="panel-note mt-1">记录本次测量数值和部位。</div>
+              </div>
+              <div className="rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">黄疸数值</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.1"
+                    value={jaundiceValue}
+                    onChange={(event) => setJaundiceValue(event.target.value.slice(0, 5))}
+                    placeholder="例如：12.4"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                  />
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {JAUNDICE_SITES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={jaundiceSite === option.value}
+                    label={option.label}
+                    onClick={() => setJaundiceSite(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {type === "cord_care" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">脐部护理</div>
+                <div className="panel-note mt-1">记录消毒后的脐部状态。</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {CORD_STATUSES.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={cordStatus === option.value}
+                    label={option.label}
+                    onClick={() => setCordStatus(option.value)}
+                  />
+                ))}
+              </div>
+              {cordStatus !== "dry" ? (
+                <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF7E7] px-4 py-3 text-sm leading-6 text-[#8A6220]">
+                  脐部状态异常时，建议持续观察并记录变化。
+                </div>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
+          {type === "bath_touch" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">洗护操作</div>
+                <div className="panel-note mt-1">记录洗澡、抚触或组合护理。</div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {CARE_ACTIONS.map((option) => (
+                  <MiniCardButton
+                    key={option.value}
+                    active={careAction === option.value}
+                    label={option.label}
+                    onClick={() => setCareAction(option.value)}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {type === "medicine" ? (
+            <SectionCard className="space-y-4 p-4">
+              <div>
+                <div className="panel-title text-[17px]">服药信息</div>
+                <div className="panel-note mt-1">记下药品和本次用量，方便家人核对</div>
+              </div>
+              <div className="space-y-3 rounded-[22px] bg-white p-4 shadow-soft">
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">药品名称</span>
+                  <input
+                    type="text"
+                    value={medicineName}
+                    onChange={(event) => setMedicineName(event.target.value.slice(0, 60))}
+                    placeholder="例如：布洛芬混悬液"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                    maxLength={60}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.18em] text-[#7A8B80]">本次用量（选填）</span>
+                  <input
+                    type="text"
+                    value={medicineDose}
+                    onChange={(event) => setMedicineDose(event.target.value.slice(0, 40))}
+                    placeholder="例如：2.5 ml、半片、1袋"
+                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
+                    maxLength={40}
+                  />
+                </label>
+              </div>
+            </SectionCard>
           ) : null}
 
           <SectionCard className="p-4">

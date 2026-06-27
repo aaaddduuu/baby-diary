@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { Baby } from "./api";
 import { fetchBabies } from "./api";
@@ -20,41 +20,46 @@ export function BabyProvider({ children }: { children: ReactNode }) {
   const [baby, setBaby] = useState<Baby | null>(null);
   const [babies, setBabies] = useState<Baby[]>([]);
   const [loading, setLoading] = useState(true);
-  const initialized = useRef(false);
+  const selectBaby = useCallback((nextBaby: Baby) => {
+    setBaby(nextBaby);
+    setBabies((current) => current.some((item) => item.id === nextBaby.id) ? current : [nextBaby, ...current]);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!user) {
+      setBabies([]);
+      setBaby(null);
       setLoading(false);
       return;
     }
 
-    if (!initialized.current) {
-      setLoading(true);
-    }
+    setLoading(true);
 
     try {
       const data = await fetchBabies();
       setBabies(data);
-      if (data.length > 0 && !baby) {
-        setBaby(data[0]);
-      }
-      initialized.current = true;
+      setBaby((current) => {
+        if (current && data.some((item) => item.id === current.id)) return current;
+        return data[0] || null;
+      });
     } catch {
     } finally {
       setLoading(false);
     }
-  }, [user, baby]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!authLoading) {
-      refresh();
+      setBabies([]);
+      setBaby(null);
+      void refresh();
     }
-  }, [user, authLoading]);
+  }, [user?.id, authLoading, refresh]);
 
   const hasBaby = babies.length > 0;
 
   return (
-    <BabyContext.Provider value={{ baby, babies, loading: loading || authLoading, hasBaby, refresh, setBaby }}>
+    <BabyContext.Provider value={{ baby, babies, loading: loading || authLoading, hasBaby, refresh, setBaby: selectBaby }}>
       {children}
     </BabyContext.Provider>
   );

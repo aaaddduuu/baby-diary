@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DatePickerSheet from "../components/DatePickerSheet";
+import DateFieldButton from "../components/DateFieldButton";
 import Header from "../components/Header";
 import Layout, { ScrollArea, SectionCard } from "../components/Layout";
 import { createExpense } from "../lib/api";
@@ -269,14 +270,11 @@ export default function AddExpensePage() {
 
               <div className="space-y-2">
                 <SectionLabel>{"购买日期"}</SectionLabel>
-                <button
-                  type="button"
+                <DateFieldButton
+                  value={date}
+                  ariaLabel="选择购买日期"
                   onClick={() => setShowDatePicker(true)}
-                  className="flex h-12 w-full items-center justify-between rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-left text-sm text-[#21382E] outline-none transition-all focus:ring-2 focus:ring-[#5BC4A0]/30"
-                >
-                  <span>{date}</span>
-                  <span className="text-sm font-medium text-[#7A8B80]">选择日期</span>
-                </button>
+                />
               </div>
 
               <div className="space-y-2">
@@ -328,6 +326,7 @@ export default function AddExpensePage() {
       <DatePickerSheet
         visible={showDatePicker}
         value={date}
+        maxDate={getLocalDateString()}
         onConfirm={(nextDate) => {
           setDate(nextDate);
           setShowDatePicker(false);

@@ -65,9 +65,11 @@ family.get("/", async (c) => {
         "外婆": "👵", "外公": "👴", "保姆": "🧑", "其他": "🧑",
       };
 
+      const relation = typeof baby.relation === "string" ? baby.relation : "";
+
       await c.env.DB.prepare(
         "INSERT INTO family_members (family_id, user_id, role, nickname, avatar_emoji) VALUES (?, ?, ?, ?, ?)"
-      ).bind(familyId, userId, "admin", baby.relation || "家长", emojiMap[baby.relation || ""] || "🧑").run();
+      ).bind(familyId, userId, "admin", relation || "家长", emojiMap[relation] || "🧑").run();
     }
 
     if (!familyId) {
@@ -96,7 +98,7 @@ family.post("/create", async (c) => {
   try {
     const userId = c.get("userId");
     const body = await c.req.json();
-    const { baby_id, relation, name } = body;
+    const { baby_id, relation } = body;
 
     if (!baby_id || !relation) {
       return c.json({ success: false, data: null, message: "缺少必填字段" }, 400);
@@ -254,7 +256,7 @@ family.post("/join", async (c) => {
           "UPDATE babies SET family_id = ? WHERE id = ?"
         ).bind(familyRecord.id, baby.id).run();
 
-        if (oldFamilyMembers && oldFamilyMembers.count <= 1) {
+        if (oldFamilyMembers && Number(oldFamilyMembers.count) <= 1) {
           await c.env.DB.prepare(
             "DELETE FROM family_members WHERE family_id = ?"
           ).bind(baby.family_id).run();
@@ -269,7 +271,11 @@ family.post("/join", async (c) => {
       }
     }
 
-    return c.json({ success: true, data: { family: familyRecord } });
+    const familyBaby = await c.env.DB.prepare(
+      "SELECT * FROM babies WHERE family_id = ? ORDER BY created_at ASC LIMIT 1"
+    ).bind(familyRecord.id).first();
+
+    return c.json({ success: true, data: { family: familyRecord, baby: familyBaby } });
   } catch (e) {
     return c.json({ success: false, data: null, message: String(e) }, 500);
   }

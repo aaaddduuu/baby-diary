@@ -36,6 +36,12 @@ async function checkBabyAccess(db: D1Database, userId: number, babyId: number): 
   return !!member;
 }
 
+function normalizeRecordedAt(value: unknown): string | null {
+  const date = value === undefined ? new Date() : new Date(String(value));
+  if (Number.isNaN(date.getTime()) || date.getTime() > Date.now() + 60_000) return null;
+  return date.toISOString();
+}
+
 records.post("/", async (c) => {
   try {
     const userId = c.get("userId");
@@ -46,9 +52,24 @@ records.post("/", async (c) => {
       return c.json({ success: false, data: null, message: "缺少必填字段" }, 400);
     }
 
-    const validTypes = ["breast_milk", "formula", "sleep", "diaper", "growth"];
+    const validTypes = ["breast_milk", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
     if (!validTypes.includes(type)) {
       return c.json({ success: false, data: null, message: "无效的记录类型" }, 400);
+    }
+
+    if (type === "medicine" && (typeof data.medicine_name !== "string" || !data.medicine_name.trim())) {
+      return c.json({ success: false, data: null, message: "请填写药品名称" }, 400);
+    }
+    if (type === "temperature" && (typeof data.value !== "number" || data.value < 30 || data.value > 43)) {
+      return c.json({ success: false, data: null, message: "请填写有效体温" }, 400);
+    }
+    if (type === "jaundice" && (typeof data.value !== "number" || data.value < 0)) {
+      return c.json({ success: false, data: null, message: "请填写有效黄疸数值" }, 400);
+    }
+
+    const normalizedRecordedAt = normalizeRecordedAt(recorded_at);
+    if (!normalizedRecordedAt) {
+      return c.json({ success: false, data: null, message: "记录时间无效" }, 400);
     }
 
     if (!(await checkBabyAccess(c.env.DB, userId, baby_id))) {
@@ -57,7 +78,7 @@ records.post("/", async (c) => {
 
     const result = await c.env.DB.prepare(
       "INSERT INTO records (baby_id, user_id, type, data, recorded_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(baby_id, userId, type, JSON.stringify(data), recorded_at || new Date().toISOString()).run();
+    ).bind(baby_id, userId, type, JSON.stringify(data), normalizedRecordedAt).run();
 
     const record = await c.env.DB.prepare("SELECT * FROM records WHERE id = ?").bind(result.meta.last_row_id).first();
     return c.json({ success: true, data: record }, 201);
@@ -89,7 +110,7 @@ records.get("/", async (c) => {
     const params: (string | number)[] = [Number(babyId)];
 
     if (date) {
-      query += " AND DATE(recorded_at) = ?";
+      query += " AND DATE(recorded_at, '+8 hours') = ?";
       params.push(date);
     }
     if (type) {
@@ -141,9 +162,28 @@ records.put("/:id", async (c) => {
     }
 
     const { type, data, recorded_at } = body;
+    const nextType = type || existing.type;
+    const nextData = data || JSON.parse(String(existing.data));
+    const validTypes = ["breast_milk", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
+    if (!validTypes.includes(String(nextType))) {
+      return c.json({ success: false, data: null, message: "无效的记录类型" }, 400);
+    }
+    if (nextType === "medicine" && (typeof nextData.medicine_name !== "string" || !nextData.medicine_name.trim())) {
+      return c.json({ success: false, data: null, message: "请填写药品名称" }, 400);
+    }
+    if (nextType === "temperature" && (typeof nextData.value !== "number" || nextData.value < 30 || nextData.value > 43)) {
+      return c.json({ success: false, data: null, message: "请填写有效体温" }, 400);
+    }
+    if (nextType === "jaundice" && (typeof nextData.value !== "number" || nextData.value < 0)) {
+      return c.json({ success: false, data: null, message: "请填写有效黄疸数值" }, 400);
+    }
+    const normalizedRecordedAt = recorded_at === undefined ? String(existing.recorded_at) : normalizeRecordedAt(recorded_at);
+    if (!normalizedRecordedAt) {
+      return c.json({ success: false, data: null, message: "记录时间无效" }, 400);
+    }
     await c.env.DB.prepare(
       "UPDATE records SET type = ?, data = ?, recorded_at = ? WHERE id = ?"
-    ).bind(type || existing.type, data ? JSON.stringify(data) : existing.data, recorded_at || existing.recorded_at, id).run();
+    ).bind(nextType, JSON.stringify(nextData), normalizedRecordedAt, id).run();
 
     const record = await c.env.DB.prepare("SELECT * FROM records WHERE id = ?").bind(id).first();
     return c.json({ success: true, data: record });

@@ -93,7 +93,7 @@ export default function ProfilePage() {
             <div>
               <div className="panel-title text-[17px]">资料信息</div>
               <div className="panel-note mt-1">
-                保留一个安静清晰的表单，把常用信息放在同一张卡片里
+                设置你在家庭成员和记录来源中展示的昵称。
               </div>
             </div>
 

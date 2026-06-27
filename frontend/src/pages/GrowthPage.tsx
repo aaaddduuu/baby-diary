@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import Layout, { Fab, Hero, ScrollArea, SectionCard } from "../components/Layout";
 import Header from "../components/Header";
 import GrowthChart from "../components/GrowthChart";
+import DateFieldButton from "../components/DateFieldButton";
+import DatePickerSheet from "../components/DatePickerSheet";
 import { useBaby } from "../lib/BabyContext";
 import {
   createGrowthRecord,
@@ -11,6 +13,7 @@ import {
 } from "../lib/api";
 import type { GrowthRecord } from "../lib/api";
 import { getWHOData } from "../lib/who-data";
+import { getLocalDateString } from "./recordFormShared";
 
 type TabType = "weight" | "height" | "head";
 
@@ -37,7 +40,7 @@ function getValidation(
   months: number,
   type: TabType,
   value: number,
-): { status: "low" | "high" | "ok"; message: string } | null {
+): { status: "low" | "high" | "ok"; message: string; low?: number; high?: number } | null {
   if (!value || value <= 0) return null;
 
   let expected: number;
@@ -58,10 +61,10 @@ function getValidation(
   const high = expected * (1 + range);
 
   if (value < low) {
-    return { status: "low", message: "数值偏低，请确认输入是否正确。" };
+    return { status: "low", message: `数值低于常见参考范围 ${low.toFixed(1)}-${high.toFixed(1)}，请确认是否录入正确。`, low, high };
   }
   if (value > high) {
-    return { status: "high", message: "数值偏高，请确认输入是否正确。" };
+    return { status: "high", message: `数值高于常见参考范围 ${low.toFixed(1)}-${high.toFixed(1)}，请确认是否录入正确。`, low, high };
   }
   return { status: "ok", message: "" };
 }
@@ -133,7 +136,8 @@ export default function GrowthPage() {
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [headCirc, setHeadCirc] = useState("");
-  const [measuredAt, setMeasuredAt] = useState(new Date().toISOString().slice(0, 10));
+  const [measuredAt, setMeasuredAt] = useState(getLocalDateString);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
@@ -199,7 +203,7 @@ export default function GrowthPage() {
     setWeight("");
     setHeight("");
     setHeadCirc("");
-    setMeasuredAt(new Date().toISOString().slice(0, 10));
+    setMeasuredAt(getLocalDateString());
     setError("");
     setActionId(null);
     setShowAdd(true);
@@ -319,11 +323,10 @@ export default function GrowthPage() {
               <div className="space-y-4 rounded-[22px] bg-white p-4 shadow-soft">
                 <div className="space-y-2">
                   <FieldLabel>测量日期</FieldLabel>
-                  <input
-                    className="h-12 w-full rounded-2xl border border-[#E8E1D5] bg-[#FBF9F3] px-4 text-sm text-[#21382E] outline-none focus:border-[#5BC4A0]"
-                    type="date"
+                  <DateFieldButton
                     value={measuredAt}
-                    onChange={(event) => setMeasuredAt(event.target.value)}
+                    ariaLabel="选择测量日期"
+                    onClick={() => setShowDatePicker(true)}
                   />
                 </div>
 
@@ -397,6 +400,17 @@ export default function GrowthPage() {
             </button>
           </div>
         </div>
+
+        <DatePickerSheet
+          visible={showDatePicker}
+          value={measuredAt}
+          maxDate={getLocalDateString()}
+          onConfirm={(date) => {
+            setMeasuredAt(date);
+            setShowDatePicker(false);
+          }}
+          onCancel={() => setShowDatePicker(false)}
+        />
       </Layout>
     );
   }
@@ -431,7 +445,7 @@ export default function GrowthPage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">指标切换</div>
-                <div className="panel-note mt-1">统一使用同一套 tabs / chips 查看体重、身高和头围。</div>
+                <div className="panel-note mt-1">在体重、身高和头围之间切换查看。</div>
               </div>
               <div className="flex flex-wrap gap-2">
                 {TABS.map((tab) => (
@@ -485,7 +499,7 @@ export default function GrowthPage() {
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">阶段摘要</div>
-                <div className="panel-note mt-1">把当前指标、月龄位置和最近一次测量放在同一个浅色信息区里。</div>
+                <div className="panel-note mt-1">查看最近测量、百分位区间和当前指标的记录数量。</div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
@@ -524,7 +538,7 @@ export default function GrowthPage() {
             <SectionCard className="overflow-hidden">
               <div className="border-b border-[#EFE8DD] px-4 py-4">
                 <div className="panel-title text-[17px]">测量历史</div>
-                <div className="panel-note mt-1">所有状态信息和操作都收在同一张历史卡片里。</div>
+                <div className="panel-note mt-1">按日期回看每次测量，也可以继续编辑或删除。</div>
               </div>
 
               {records.length > 0 ? (

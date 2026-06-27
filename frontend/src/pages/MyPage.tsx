@@ -4,23 +4,8 @@ import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import { useBaby } from "../lib/BabyContext";
 import { useAuth } from "../lib/AuthContext";
-import { fetchRecords, fetchExpenses, fetchFamily } from "../lib/api";
-import type { FamilyMember } from "../lib/api";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
-
-interface GrowthRecord {
-  id: number;
-  weight: number | null;
-  height: number | null;
-  head_circumference: number | null;
-  measured_at: string;
-}
-
-interface Vaccine {
-  id: number;
-  status: string;
-}
+import { fetchRecords, fetchExpenses, fetchFamily, fetchGrowthRecords, fetchVaccines } from "../lib/api";
+import type { FamilyMember, GrowthRecord } from "../lib/api";
 
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 7) return phone;
@@ -68,53 +53,29 @@ export default function MyPage() {
   const [growthRecords, setGrowthRecords] = useState<GrowthRecord[]>([]);
   const [pendingVaccines, setPendingVaccines] = useState(0);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     if (!baby) return;
 
-    fetchRecords(baby.id)
-      .then(records => setTotalRecords(records.length))
-      .catch(() => {});
-
-    fetchExpenses(baby.id)
-      .then(expenses => {
-        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-        setTotalExpense(total);
-      })
-      .catch(() => {});
-
+    setStatsLoading(true);
     const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-    fetchExpenses(baby.id, currentMonth)
-      .then(expenses => {
-        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-        setMonthExpense(total);
-      })
-      .catch(() => {});
-
-    fetch(`${API_BASE}/babies/${baby.id}/growth`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setGrowthRecords(data.data);
-      })
-      .catch(() => {});
-
-    fetch(`${API_BASE}/babies/${baby.id}/vaccines`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          const pending = data.data.filter((v: Vaccine) => v.status === "planned").length;
-          setPendingVaccines(pending);
-        }
-      })
-      .catch(() => {});
-
-    fetchFamily()
-      .then(data => setFamilyMembers(data.members))
-      .catch(() => {});
+    Promise.all([
+      fetchRecords(baby.id).then(records => setTotalRecords(records.length)),
+      fetchExpenses(baby.id).then(expenses => {
+        setTotalExpense(expenses.reduce((sum, e) => sum + e.amount, 0));
+      }),
+      fetchExpenses(baby.id, currentMonth).then(expenses => {
+        setMonthExpense(expenses.reduce((sum, e) => sum + e.amount, 0));
+      }),
+      fetchGrowthRecords(baby.id).then(setGrowthRecords),
+      fetchVaccines(baby.id).then(vaccines => {
+        setPendingVaccines(vaccines.filter((v) => v.status === "planned").length);
+      }),
+      fetchFamily().then(data => setFamilyMembers(data.members)),
+    ])
+      .catch(() => {})
+      .finally(() => setStatsLoading(false));
   }, [baby]);
 
   const handleLogout = () => {
@@ -150,8 +111,8 @@ export default function MyPage() {
         {baby && (
           <div className="flex gap-[7px] mt-3.5 relative z-10">
             <HeroStatCard value={`${calcDays(baby.birth_date)}`} label="出生天数" suffix="天" />
-            <HeroStatCard value={`${totalRecords}`} label="总记录数" suffix="笔" />
-            <HeroStatCard value={`¥${totalExpense.toLocaleString()}`} label="累计花费" />
+            <HeroStatCard value={statsLoading ? "--" : `${totalRecords}`} label="总记录数" suffix={statsLoading ? undefined : "笔"} />
+            <HeroStatCard value={statsLoading ? "--" : `¥${totalExpense.toLocaleString()}`} label="累计花费" />
           </div>
         )}
       </Hero>
@@ -286,7 +247,7 @@ export default function MyPage() {
               <div className="w-9 h-9 rounded-[10px] bg-gray-100 flex items-center justify-center text-base flex-shrink-0 mr-[11px]">📲</div>
               <div className="flex-1">
                 <div className="text-sm font-medium text-gray-900">添加到桌面</div>
-                <div className="text-[10px] text-gray-400">iOS: 下载后去 设置→通用→VPN与设备管理 安装</div>
+                <div className="text-[10px] text-gray-400">iOS 可通过浏览器分享菜单添加到主屏幕</div>
               </div>
               <div className="text-gray-400">›</div>
             </button>

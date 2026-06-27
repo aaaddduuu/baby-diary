@@ -3,18 +3,32 @@ import { useNavigate } from "react-router-dom";
 import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import DatePickerSheet from "../components/DatePickerSheet";
-import { fetchRecords } from "../lib/api";
+import RecordTypeIcon, { getDiaperIconName, getDiaperLabel } from "../components/RecordTypeIcon";
+import type { RecordIconName } from "../components/RecordTypeIcon";
+import { deleteRecord, fetchRecords } from "../lib/api";
 import { useBaby } from "../lib/BabyContext";
 import type { BabyRecord } from "../lib/api";
+import {
+  CARE_ACTIONS,
+  CORD_STATUSES,
+  DIAPER_AMOUNTS,
+  getLocalDateString,
+  JAUNDICE_SITES,
+  STOOL_TEXTURES,
+  TEMPERATURE_SITES,
+} from "./recordFormShared";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
-
-const TYPE_META: Record<string, { icon: string; label: string; bg: string }> = {
-  breast_milk: { icon: "🥛", label: "母乳", bg: "bg-rose-light" },
-  formula: { icon: "🍼", label: "配方奶", bg: "bg-sky-light" },
-  sleep: { icon: "😴", label: "睡眠", bg: "bg-indigo-light" },
-  diaper: { icon: "🧷", label: "尿布", bg: "bg-amber-light" },
-  growth: { icon: "📏", label: "成长", bg: "bg-green-light" },
+const TYPE_META: Record<string, { iconName: RecordIconName; label: string; tone: string; surface: string }> = {
+  breast_milk: { iconName: "breast_milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  formula: { iconName: "formula", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
+  sleep: { iconName: "sleep", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
+  diaper: { iconName: "diaper_wet", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
+  medicine: { iconName: "medicine", label: "吃药", tone: "#D06A7A", surface: "#FFF0F2" },
+  growth: { iconName: "growth", label: "成长", tone: "#3FA37F", surface: "#EAF8F2" },
+  temperature: { iconName: "temperature", label: "体温", tone: "#D66B4D", surface: "#FFF1EA" },
+  jaundice: { iconName: "jaundice", label: "黄疸", tone: "#C88A17", surface: "#FFF8D8" },
+  cord_care: { iconName: "cord_care", label: "脐护", tone: "#2F9B73", surface: "#EAF8F2" },
+  bath_touch: { iconName: "bath_touch", label: "洗护", tone: "#3C8ACD", surface: "#EAF5FF" },
 };
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -24,8 +38,35 @@ function formatTime(isoStr: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function safeJsonParse(value: string): Record<string, any> {
+  try {
+    return JSON.parse(value) as Record<string, any>;
+  } catch {
+    return {};
+  }
+}
+
+function optionLabel(options: readonly { value: string; label: string }[], value: unknown, fallback = "未记录"): string {
+  return options.find((option) => option.value === value)?.label || fallback;
+}
+
+function getRecordMeta(record: BabyRecord) {
+  const base = TYPE_META[record.type] || TYPE_META.growth;
+  if (record.type !== "diaper") return base;
+
+  const data = safeJsonParse(record.data);
+  const diaperType = data.diaper_type;
+  if (diaperType === "dirty") {
+    return { iconName: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#A66B3D", surface: "#FFF4E8" };
+  }
+  if (diaperType === "both") {
+    return { iconName: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#C58A28", surface: "#FFF7DF" };
+  }
+  return { iconName: getDiaperIconName(diaperType), label: getDiaperLabel(diaperType), tone: "#349FD5", surface: "#EAF8FF" };
+}
+
 function formatDetail(record: BabyRecord): string {
-  const data = JSON.parse(record.data);
+  const data = safeJsonParse(record.data);
   if (record.type === "breast_milk") {
     if (data.side === "left") return `左侧${data.leftMin}分`;
     if (data.side === "right") return `右侧${data.rightMin}分`;
@@ -45,20 +86,178 @@ function formatDetail(record: BabyRecord): string {
     return `${formatTime(data.start)} - ${formatTime(data.end)} · ${duration}`;
   }
   if (record.type === "diaper") {
-    const types: Record<string, string> = { wet: "小便", dirty: "大便", both: "都有" };
+    const amount = data.amount ? ` · ${optionLabel(DIAPER_AMOUNTS, data.amount)}` : "";
+    if (data.diaper_type !== "dirty" && data.diaper_type !== "both") return `已记录${amount}`;
     const colors: Record<string, string> = { yellow: "黄色", green: "绿色", brown: "棕色", other: "其他" };
-    return `${types[data.diaper_type] || data.diaper_type} · ${colors[data.color] || data.color}`;
+    const texture = data.texture ? ` · ${optionLabel(STOOL_TEXTURES, data.texture)}` : "";
+    return `${colors[data.color] || "未记录颜色"}${texture}${amount}`;
+  }
+  if (record.type === "medicine") {
+    const name = String(data.medicine_name || "药品");
+    return data.dose ? `${name} · ${data.dose}` : name;
+  }
+  if (record.type === "temperature") {
+    const site = optionLabel(TEMPERATURE_SITES, data.site, "体温");
+    return `${data.value ?? "--"}°C · ${site}`;
+  }
+  if (record.type === "jaundice") {
+    const site = optionLabel(JAUNDICE_SITES, data.site, "部位未记");
+    return `${data.value ?? "--"} · ${site}`;
+  }
+  if (record.type === "cord_care") {
+    return optionLabel(CORD_STATUSES, data.status, "已护理");
+  }
+  if (record.type === "bath_touch") {
+    return optionLabel(CARE_ACTIONS, data.action, "已洗护");
   }
   return "";
 }
 
+function calcSleepMinutes(record: BabyRecord): number {
+  const data = safeJsonParse(record.data);
+  if (record.type !== "sleep" || !data.start || !data.end) return 0;
+  const start = new Date(data.start);
+  const end = new Date(data.end);
+  const diff = end.getTime() - start.getTime();
+  if (!Number.isFinite(diff) || diff <= 0) return 0;
+  return Math.round(diff / 60000);
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes <= 0) return "0分";
+  const hours = Math.floor(minutes / 60);
+  const remain = minutes % 60;
+  if (hours <= 0) return `${remain}分`;
+  return remain > 0 ? `${hours}时${remain}分` : `${hours}时`;
+}
+
 function calcStats(records: BabyRecord[]) {
+  const diaperTypes = records
+    .filter((record) => record.type === "diaper")
+    .map((record) => safeJsonParse(record.data).diaper_type || "wet");
+
   return {
     breastCount: records.filter(r => r.type === "breast_milk").length,
-    formulaMl: records.filter(r => r.type === "formula").reduce((sum, r) => sum + (JSON.parse(r.data).ml || 0), 0),
-    sleepCount: records.filter(r => r.type === "sleep").length,
-    diaperCount: records.filter(r => r.type === "diaper").length,
+    feedMl: records.filter(r => r.type === "formula").reduce((sum, r) => sum + (safeJsonParse(r.data).ml || 0), 0),
+    formulaMl: records.filter(r => r.type === "formula").reduce((sum, r) => sum + (safeJsonParse(r.data).ml || 0), 0),
+    sleepMinutes: records.reduce((sum, r) => sum + calcSleepMinutes(r), 0),
+    medicineCount: records.filter(r => r.type === "medicine").length,
+    urineCount: diaperTypes.filter((type) => type === "wet" || type === "both").length,
+    stoolCount: diaperTypes.filter((type) => type === "dirty" || type === "both").length,
+    latestTemp: records.find(r => r.type === "temperature"),
+    latestJaundice: records.find(r => r.type === "jaundice"),
+    careCount: records.filter(r => r.type === "cord_care" || r.type === "bath_touch").length,
   };
+}
+
+function getCareAlerts(records: BabyRecord[]): string[] {
+  const alerts: string[] = [];
+  const latestTemp = records.find((record) => record.type === "temperature");
+  if (latestTemp) {
+    const value = Number(safeJsonParse(latestTemp.data).value);
+    if (Number.isFinite(value) && value >= 37.5) alerts.push(`最近体温 ${value}°C，建议继续观察`);
+    if (Number.isFinite(value) && value < 36) alerts.push(`最近体温 ${value}°C，注意保暖并复测`);
+  }
+
+  const hasUrine = records.some((record) => {
+    if (record.type !== "diaper") return false;
+    const type = safeJsonParse(record.data).diaper_type || "wet";
+    return type === "wet" || type === "both";
+  });
+  if (records.length > 0 && !hasUrine) alerts.push("今天还没有小便记录");
+
+  const abnormalCord = records.find((record) => {
+    if (record.type !== "cord_care") return false;
+    return safeJsonParse(record.data).status && safeJsonParse(record.data).status !== "dry";
+  });
+  if (abnormalCord) alerts.push(`脐部状态：${formatDetail(abnormalCord)}`);
+
+  return alerts.slice(0, 3);
+}
+
+function isDiaperType(record: BabyRecord, expected: "wet" | "dirty"): boolean {
+  if (record.type !== "diaper") return false;
+  const diaperType = safeJsonParse(record.data).diaper_type || "wet";
+  if (expected === "wet") return diaperType === "wet" || diaperType === "both";
+  return diaperType === "dirty" || diaperType === "both";
+}
+
+function getLatestRecord(records: BabyRecord[], matcher: (record: BabyRecord) => boolean): BabyRecord | undefined {
+  return records.find(matcher);
+}
+
+function buildHandoffFocus(records: BabyRecord[], alerts: string[]): string {
+  if (alerts.length > 0) return alerts[0];
+
+  const activeSleep = records.find((record) => {
+    if (record.type !== "sleep") return false;
+    const data = safeJsonParse(record.data);
+    return data.sleeping || !data.end;
+  });
+  if (activeSleep) return "宝宝正在睡眠中，接班后先留意醒来时间";
+
+  const hasFeed = records.some((record) => record.type === "breast_milk" || record.type === "formula");
+  if (!hasFeed && records.length > 0) return "今天还没有喂养记录";
+
+  const latestCare = records.find((record) => record.type === "cord_care" || record.type === "bath_touch");
+  if (latestCare) return `最近护理：${formatDetail(latestCare)}`;
+
+  return records.length > 0 ? "今天照护节奏平稳，继续按需记录" : "今天还没有记录，接班后从第一次照护开始记";
+}
+
+function HandoffSummary({ records, alerts }: { records: BabyRecord[]; alerts: string[] }) {
+  const latestFeed = getLatestRecord(records, (record) => record.type === "breast_milk" || record.type === "formula");
+  const latestUrine = getLatestRecord(records, (record) => isDiaperType(record, "wet"));
+  const latestStool = getLatestRecord(records, (record) => isDiaperType(record, "dirty"));
+  const latestSleep = getLatestRecord(records, (record) => record.type === "sleep");
+  const latestTemp = getLatestRecord(records, (record) => record.type === "temperature");
+  const latestJaundice = getLatestRecord(records, (record) => record.type === "jaundice");
+  const focus = buildHandoffFocus(records, alerts);
+
+  const items = [
+    { label: "上次喂养", record: latestFeed },
+    { label: "最近睡眠", record: latestSleep },
+    { label: "小便", record: latestUrine },
+    { label: "大便", record: latestStool },
+    { label: "体温", record: latestTemp },
+    { label: "黄疸", record: latestJaundice },
+  ];
+  const handoffText = [
+    `家庭交接：${focus}`,
+    ...items.map((item) => `${item.label}：${item.record ? `${formatTime(item.record.recorded_at)} ${formatDetail(item.record)}` : "暂无"}`),
+  ].join("\n");
+
+  return (
+    <div className="px-3.5 pt-3.5">
+      <div className="rounded-[22px] border border-white bg-white px-4 py-3.5 shadow-card">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-bold text-gray-900">家庭交接</div>
+            <div className="mt-0.5 text-[11px] leading-5 text-gray-400">{focus}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(handoffText);
+            }}
+            className="rounded-pill border border-[#DDEFE6] bg-[#F0FAF6] px-3 py-1.5 text-[11px] font-bold text-[#1A5C3A]"
+          >
+            复制
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {items.map((item) => (
+            <div key={item.label} className="rounded-[16px] bg-[#F8F7EF] px-3 py-2">
+              <div className="text-[10px] font-bold text-gray-400">{item.label}</div>
+              <div className="mt-1 truncate text-xs font-semibold text-gray-800">
+                {item.record ? `${formatTime(item.record.recorded_at)} · ${formatDetail(item.record)}` : "暂无"}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function formatDateDisplay(dateStr: string): string {
@@ -101,24 +300,16 @@ interface SwipeableItemProps {
 
 function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
   const [offset, setOffset] = useState(0);
-  const [showActions, setShowActions] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
+  const startOffset = useRef(0);
   const isDragging = useRef(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartTime = useRef(0);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
+    startOffset.current = offset;
     isDragging.current = false;
-    touchStartTime.current = Date.now();
-
-    longPressTimer.current = setTimeout(() => {
-      if (!isDragging.current) {
-        setShowActions(true);
-      }
-    }, 500);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -127,53 +318,44 @@ function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
 
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
       isDragging.current = true;
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
     }
 
     if (isDragging.current) {
-      const newOffset = Math.min(0, Math.max(-120, deltaX));
+      const newOffset = Math.min(0, Math.max(-120, startOffset.current + deltaX));
       setOffset(newOffset);
     }
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
     if (isDragging.current) {
-      if (offset < -60) {
-        setOffset(-120);
-        setShowActions(true);
-      } else {
-        setOffset(0);
-        setShowActions(false);
-      }
+      setOffset(offset < -60 ? -120 : 0);
     }
+    isDragging.current = false;
   };
 
   const closeActions = () => {
     setOffset(0);
-    setShowActions(false);
   };
 
-  const meta = TYPE_META[record.type] || TYPE_META.growth;
+  const meta = getRecordMeta(record);
 
   return (
     <div className="relative overflow-hidden mb-2">
-      <div className="absolute right-0 top-0 bottom-0 flex">
+      <div
+        className="absolute bottom-0 right-0 top-0 flex"
+        aria-hidden={offset === 0}
+        style={{ pointerEvents: offset === 0 ? "none" : "auto" }}
+      >
         <button
           onClick={() => { onEdit(record); closeActions(); }}
+          tabIndex={offset === 0 ? -1 : 0}
           className="w-[60px] bg-mint flex items-center justify-center text-white text-xs font-medium border-none cursor-pointer"
         >
           编辑
         </button>
         <button
           onClick={() => { onDelete(record.id); closeActions(); }}
+          tabIndex={offset === 0 ? -1 : 0}
           className="w-[60px] bg-danger flex items-center justify-center text-white text-xs font-medium border-none cursor-pointer"
         >
           删除
@@ -185,9 +367,13 @@ function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
-        <div className={`w-7 h-7 rounded-full ${meta.bg} flex items-center justify-center text-sm flex-shrink-0 z-10`}>
-          {meta.icon}
+        <div
+          className="z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[14px] border border-white/80 shadow-[0_6px_16px_rgba(57,87,70,.08)]"
+          style={{ backgroundColor: meta.surface, color: meta.tone }}
+        >
+          <RecordTypeIcon name={meta.iconName} className="h-5 w-5" />
         </div>
         <div className="flex-1 bg-white rounded-sm shadow-card py-[9px] px-[11px] cursor-pointer">
           <div className="flex items-center justify-between mb-0.5">
@@ -208,22 +394,6 @@ function SwipeableItem({ record, onEdit, onDelete }: SwipeableItemProps) {
           </div>
         </div>
       </div>
-      {showActions && offset === 0 && (
-        <div className="absolute inset-0 bg-white/90 flex items-center justify-end gap-2 pr-2 rounded-sm" onClick={closeActions}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(record); closeActions(); }}
-            className="px-3 py-1.5 text-xs font-medium text-white bg-mint rounded-pill border-none cursor-pointer"
-          >
-            编辑
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(record.id); closeActions(); }}
-            className="px-3 py-1.5 text-xs font-medium text-white bg-danger rounded-pill border-none cursor-pointer"
-          >
-            删除
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -233,7 +403,7 @@ export default function RecordPage() {
   const { baby } = useBaby();
   const [records, setRecords] = useState<BabyRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [toast, setToast] = useState<{ message: string; undoFn?: () => void } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -248,6 +418,9 @@ export default function RecordPage() {
   }, [baby, selectedDate]);
 
   const stats = useMemo(() => calcStats(records), [records]);
+  const alerts = useMemo(() => getCareAlerts(records), [records]);
+  const latestTempValue = stats.latestTemp ? safeJsonParse(stats.latestTemp.data).value : null;
+  const latestJaundiceValue = stats.latestJaundice ? safeJsonParse(stats.latestJaundice.data).value : null;
 
   const showToast = useCallback((message: string, undoFn?: () => void) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -262,24 +435,16 @@ export default function RecordPage() {
   }, [navigate]);
 
   const handleDelete = useCallback(async (id: number) => {
-    const deletedRecord = records.find(r => r.id === id);
-    if (!deletedRecord) return;
-
-    setRecords(prev => prev.filter(r => r.id !== id));
+    if (!window.confirm("确定要删除这条记录吗？删除后将无法撤销。")) return;
 
     try {
-      await fetch(`${API_BASE}/records/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-    } catch {}
-
-    showToast("已删除", () => {
-      setRecords(prev => [...prev, deletedRecord].sort((a, b) =>
-        new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime()
-      ));
-    });
-  }, [records, showToast]);
+      await deleteRecord(id);
+      setRecords(prev => prev.filter(r => r.id !== id));
+      showToast("已删除");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "删除失败，请稍后重试");
+    }
+  }, [showToast]);
 
   const handlePrevDay = () => {
     setSelectedDate(prev => addDays(prev, -1));
@@ -307,11 +472,16 @@ export default function RecordPage() {
         <div className="flex items-center relative z-10">
           <div className="header-title flex-1">记录</div>
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-3 relative z-10">
-          <HeroStatCard value={`${stats.breastCount}`} label="母乳" suffix="次" />
-          <HeroStatCard value={`${stats.sleepCount}`} label="睡眠" suffix="次" />
-          <HeroStatCard value={`${stats.formulaMl}`} label="配方奶" suffix="ml" />
-          <HeroStatCard value={`${stats.diaperCount}`} label="尿布" suffix="次" />
+        <div className="relative z-10 mt-3 grid grid-cols-6 gap-2">
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.breastCount}`} label="母乳" suffix={loading ? undefined : "次"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.formulaMl}`} label="配方奶" suffix={loading ? undefined : "ml"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : formatMinutes(stats.sleepMinutes)} label="睡眠" />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.urineCount}`} label="小便" suffix={loading ? undefined : "次"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.stoolCount}`} label="大便" suffix={loading ? undefined : "次"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : latestTempValue ? `${latestTempValue}` : "--"} label="体温" suffix={loading || !latestTempValue ? undefined : "°C"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : latestJaundiceValue ? `${latestJaundiceValue}` : "--"} label="黄疸" />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.careCount}`} label="护理" suffix={loading ? undefined : "次"} />
+          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.medicineCount}`} label="用药" suffix={loading ? undefined : "次"} />
         </div>
       </Hero>
 
@@ -330,9 +500,9 @@ export default function RecordPage() {
             <span className="text-sm font-semibold text-gray-900">{formatDateDisplay(selectedDate)}</span>
             <span className="text-[10px] text-gray-400">{selectedDate}</span>
           </button>
-          {selectedDate !== new Date().toISOString().slice(0, 10) && (
+          {selectedDate !== getLocalDateString() && (
             <button
-              onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))}
+              onClick={() => setSelectedDate(getLocalDateString())}
               className="text-[11px] text-mint bg-mint-light px-2 py-0.5 rounded-pill border-none cursor-pointer font-medium"
             >
               今天
@@ -355,6 +525,17 @@ export default function RecordPage() {
           <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中…</div>
         ) : (
           <>
+            <HandoffSummary records={records} alerts={alerts} />
+            {alerts.length > 0 ? (
+              <div className="px-3.5 pt-3.5">
+                <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF8E8] px-4 py-3 text-sm leading-6 text-[#8A6220] shadow-card">
+                  <div className="mb-1 font-bold text-[#7A4D15]">护理提醒</div>
+                  {alerts.map((alert) => (
+                    <div key={alert}>{alert}</div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {records.length > 0 ? (
               <div className="p-3.5">
                 {records.map((item) => (
@@ -395,6 +576,7 @@ export default function RecordPage() {
       <DatePickerSheet
         visible={showDatePicker}
         value={selectedDate}
+        maxDate={getLocalDateString()}
         onConfirm={(date) => {
           setSelectedDate(date);
           setShowDatePicker(false);
@@ -404,4 +586,3 @@ export default function RecordPage() {
     </Layout>
   );
 }
-

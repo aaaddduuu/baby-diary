@@ -51,6 +51,50 @@ CREATE TABLE IF NOT EXISTS records (
 CREATE INDEX IF NOT EXISTS idx_records_baby_id ON records(baby_id);
 CREATE INDEX IF NOT EXISTS idx_records_recorded_at ON records(recorded_at);
 
+CREATE TABLE IF NOT EXISTS daily_moments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  baby_id INTEGER NOT NULL REFERENCES babies(id),
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  entry_date TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (baby_id, entry_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_moments_baby_date
+  ON daily_moments(baby_id, entry_date DESC);
+
+CREATE TABLE IF NOT EXISTS daily_moment_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  moment_id INTEGER NOT NULL REFERENCES daily_moments(id) ON DELETE CASCADE,
+  r2_key TEXT NOT NULL UNIQUE,
+  content_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_moment_photos_moment
+  ON daily_moment_photos(moment_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS moment_share_links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  baby_id INTEGER NOT NULL REFERENCES babies(id),
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  share_month TEXT NOT NULL,
+  expires_on TEXT NOT NULL,
+  revoked_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_moment_share_links_baby
+  ON moment_share_links(baby_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_moment_share_links_token
+  ON moment_share_links(token_hash);
+
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   baby_id INTEGER NOT NULL REFERENCES babies(id),

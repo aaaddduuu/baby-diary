@@ -311,9 +311,9 @@ export default function ExpensePage() {
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-[18px] text-white/90 font-medium">¥</span>
-              <span className="header-text-shadow font-serif text-[36px] font-bold text-white leading-none">{totalAmount.toLocaleString()}</span>
+              <span className="header-text-shadow font-serif text-[36px] font-bold text-white leading-none">{loading ? "--" : totalAmount.toLocaleString()}</span>
           </div>
-                <div className="header-subtitle text-[13px] mt-1">{monthExpenses.length}笔</div>
+                <div className="header-subtitle text-[13px] mt-1">{loading ? "加载中" : `${monthExpenses.length}笔`}</div>
         </div>
       </Hero>
       <ScrollArea className="pb-20">

@@ -63,17 +63,19 @@ function NavIcon({ name, active }: { name: IconName; active: boolean }) {
 
 export default function BottomNav() {
   const { pathname } = useLocation();
+  const inMoments = pathname.startsWith("/moments");
 
   return (
     <nav className="relative flex flex-shrink-0 items-end border-t border-white/70 bg-white/82 px-2 pb-3 pt-2 backdrop-blur-[22px] shadow-[0_-14px_34px_rgba(57,87,70,.08)]">
       {tabs.map((tab, index) => {
         if ("type" in tab) {
+          const targetPath = inMoments ? "/moments/new" : tab.path;
           return (
             <Link
               key="add-record"
-              to={tab.path}
+              to={targetPath}
               className="relative flex flex-1 flex-col items-center justify-end border-none bg-transparent py-1 font-sans no-underline"
-              aria-label="新增记录"
+              aria-label={inMoments ? "新增成长时光" : "新增记录"}
             >
               <div className="absolute bottom-[20px] flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-white bg-[#2D9B6A] text-[32px] font-light leading-none text-white shadow-[0_8px_20px_rgba(45,155,106,.28)]">
                 +

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Picker from "react-mobile-picker";
+import useAppScrollLock from "../hooks/useAppScrollLock";
 
 interface DatePickerSheetProps {
   visible: boolean;
   value: string;
+  minDate?: string;
+  maxDate?: string;
   onConfirm: (date: string) => void;
   onCancel: () => void;
 }
@@ -23,11 +26,14 @@ function generateRange(start: number, end: number, pad = false): string[] {
   return values;
 }
 
-function getInitialValue(value: string): PickerValue {
+function getInitialValue(value: string, minDate?: string, maxDate?: string): PickerValue {
   const now = new Date();
+  let initialDate = value || minDate || maxDate;
+  if (minDate && initialDate && initialDate < minDate) initialDate = minDate;
+  if (maxDate && initialDate && initialDate > maxDate) initialDate = maxDate;
 
-  if (value) {
-    const [year, month, day] = value.split("-");
+  if (initialDate) {
+    const [year, month, day] = initialDate.split("-");
     return {
       year,
       month: month.padStart(2, "0"),
@@ -42,18 +48,26 @@ function getInitialValue(value: string): PickerValue {
   };
 }
 
-export default function DatePickerSheet({ visible, value, onConfirm, onCancel }: DatePickerSheetProps) {
+export default function DatePickerSheet({ visible, value, minDate, maxDate, onConfirm, onCancel }: DatePickerSheetProps) {
+  useAppScrollLock(visible);
+
   const currentYear = new Date().getFullYear();
-  const years = useMemo(() => generateRange(currentYear - 10, currentYear), [currentYear]);
+  const selectedYear = Number(value.slice(0, 4)) || currentYear;
+  const minYear = minDate ? Number(minDate.slice(0, 4)) : Math.min(currentYear - 10, selectedYear);
+  const maxYear = maxDate ? Number(maxDate.slice(0, 4)) : Math.max(currentYear + 5, selectedYear);
+  const years = useMemo(
+    () => generateRange(minYear, Math.max(minYear, maxYear)),
+    [maxYear, minYear],
+  );
   const months = useMemo(() => generateRange(1, 12, true), []);
 
-  const [pickerValue, setPickerValue] = useState<PickerValue>(() => getInitialValue(value));
+  const [pickerValue, setPickerValue] = useState<PickerValue>(() => getInitialValue(value, minDate, maxDate));
 
   useEffect(() => {
     if (visible) {
-      setPickerValue(getInitialValue(value));
+      setPickerValue(getInitialValue(value, minDate, maxDate));
     }
-  }, [visible, value]);
+  }, [visible, value, minDate, maxDate]);
 
   const daysInMonth = new Date(Number(pickerValue.year), Number(pickerValue.month), 0).getDate();
   const days = useMemo(() => generateRange(1, daysInMonth, true), [daysInMonth]);
@@ -67,8 +81,14 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
     }
   }, [daysInMonth, pickerValue.day]);
 
+  const selectedDate = `${pickerValue.year}-${pickerValue.month}-${pickerValue.day}`;
+  const precedesMinDate = Boolean(minDate && selectedDate < minDate);
+  const exceedsMaxDate = Boolean(maxDate && selectedDate > maxDate);
+  const dateOutOfRange = precedesMinDate || exceedsMaxDate;
+
   const handleConfirm = () => {
-    onConfirm(`${pickerValue.year}-${pickerValue.month}-${pickerValue.day}`);
+    if (dateOutOfRange) return;
+    onConfirm(selectedDate);
   };
 
   if (!visible) return null;
@@ -80,10 +100,10 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
   };
 
   return (
-    <div className="fixed inset-0 z-[100]" onClick={onCancel}>
+    <div className="picker-sheet-overlay fixed inset-0 z-[220]" onClick={onCancel}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        className="absolute bottom-0 left-0 right-0 rounded-t-[24px] bg-white"
+        className="picker-sheet-panel absolute bottom-0 left-0 right-0 rounded-t-[24px] bg-white"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
@@ -98,13 +118,14 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
           <button
             type="button"
             onClick={handleConfirm}
-            className="bg-transparent text-[15px] font-semibold text-mint"
+            disabled={dateOutOfRange}
+            className="bg-transparent text-[15px] font-semibold text-mint disabled:text-gray-300"
           >
             确定
           </button>
         </div>
 
-        <div className="px-4 py-2">
+        <div className="picker-sheet-wheel px-4 py-2">
           <Picker
             value={pickerValue}
             onChange={(next) => setPickerValue(next as unknown as PickerValue)}
@@ -130,6 +151,12 @@ export default function DatePickerSheet({ visible, value, onConfirm, onCancel }:
             ))}
           </Picker>
         </div>
+
+        {dateOutOfRange ? (
+          <div className="px-5 pb-3 text-center text-xs font-medium text-danger">
+            {precedesMinDate ? "不能选择早于允许范围的日期" : "不能选择晚于允许范围的日期"}
+          </div>
+        ) : null}
 
         <div className="h-[env(safe-area-inset-bottom)]" />
       </div>
