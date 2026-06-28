@@ -178,93 +178,6 @@ function getCareAlerts(records: BabyRecord[], preferences: CarePreferences): str
   return alerts.slice(0, 3);
 }
 
-function isDiaperType(record: BabyRecord, expected: "wet" | "dirty"): boolean {
-  if (record.type !== "diaper") return false;
-  const diaperType = safeJsonParse(record.data).diaper_type || "wet";
-  if (expected === "wet") return diaperType === "wet" || diaperType === "both";
-  return diaperType === "dirty" || diaperType === "both";
-}
-
-function getLatestRecord(records: BabyRecord[], matcher: (record: BabyRecord) => boolean): BabyRecord | undefined {
-  return records.find(matcher);
-}
-
-function buildHandoffFocus(records: BabyRecord[], alerts: string[], preferences: CarePreferences): string {
-  if (alerts.length > 0) return alerts[0];
-
-  const activeSleep = records.find((record) => {
-    if (record.type !== "sleep") return false;
-    const data = safeJsonParse(record.data);
-    return data.sleeping || !data.end;
-  });
-  if (activeSleep) return "宝宝正在睡眠中，接班后先留意醒来时间";
-
-  const hasFeed = records.some((record) => record.type === "breast_milk" || record.type === "formula");
-  if (!hasFeed && records.length > 0) return "今天还没有喂养记录";
-
-  const latestCare = records.find((record) =>
-    (preferences.cordCare && record.type === "cord_care") || (preferences.bathTouch && record.type === "bath_touch")
-  );
-  if (latestCare) return `最近护理：${formatDetail(latestCare)}`;
-
-  return records.length > 0 ? "今天照护节奏平稳，继续按需记录" : "今天还没有记录，接班后从第一次照护开始记";
-}
-
-function HandoffSummary({ records, alerts, preferences }: { records: BabyRecord[]; alerts: string[]; preferences: CarePreferences }) {
-  const latestFeed = getLatestRecord(records, (record) => record.type === "breast_milk" || record.type === "formula");
-  const latestUrine = getLatestRecord(records, (record) => isDiaperType(record, "wet"));
-  const latestStool = getLatestRecord(records, (record) => isDiaperType(record, "dirty"));
-  const latestSleep = getLatestRecord(records, (record) => record.type === "sleep");
-  const latestTemp = getLatestRecord(records, (record) => record.type === "temperature");
-  const latestJaundice = getLatestRecord(records, (record) => record.type === "jaundice");
-  const focus = buildHandoffFocus(records, alerts, preferences);
-
-  const items = [
-    { label: "上次喂养", record: latestFeed },
-    { label: "最近睡眠", record: latestSleep },
-    { label: "小便", record: latestUrine },
-    { label: "大便", record: latestStool },
-    { label: "体温", record: latestTemp },
-    ...(preferences.jaundice ? [{ label: "黄疸", record: latestJaundice }] : []),
-  ];
-  const handoffText = [
-    `家庭交接：${focus}`,
-    ...items.map((item) => `${item.label}：${item.record ? `${formatTime(item.record.recorded_at)} ${formatDetail(item.record)}` : "暂无"}`),
-  ].join("\n");
-
-  return (
-    <div className="px-3.5 pt-3.5">
-      <div className="rounded-[22px] border border-white bg-white px-4 py-3.5 shadow-card">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-bold text-gray-900">家庭交接</div>
-            <div className="mt-0.5 text-[11px] leading-5 text-gray-400">{focus}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(handoffText);
-            }}
-            className="rounded-pill border border-[#DDEFE6] bg-[#F0FAF6] px-3 py-1.5 text-[11px] font-bold text-[#1A5C3A]"
-          >
-            复制
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {items.map((item) => (
-            <div key={item.label} className="rounded-[16px] bg-[#F8F7EF] px-3 py-2">
-              <div className="text-[10px] font-bold text-gray-400">{item.label}</div>
-              <div className="mt-1 truncate text-xs font-semibold text-gray-800">
-                {item.record ? `${formatTime(item.record.recorded_at)} · ${formatDetail(item.record)}` : "暂无"}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function formatDateDisplay(dateStr: string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -540,7 +453,6 @@ export default function RecordPage() {
           <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中…</div>
         ) : (
           <>
-            <HandoffSummary records={records} alerts={alerts} preferences={preferences} />
             {alerts.length > 0 ? (
               <div className="px-3.5 pt-3.5">
                 <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF8E8] px-4 py-3 text-sm leading-6 text-[#8A6220] shadow-card">
