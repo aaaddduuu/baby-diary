@@ -156,6 +156,34 @@ export interface VaccineRecord {
   is_custom: number;
 }
 
+export type VoiceParseStatus = "parsed" | "partial" | "unsupported" | "unrecognized";
+
+export type VoiceCandidateType =
+  | "breast_milk"
+  | "formula"
+  | "sleep"
+  | "temperature"
+  | "diaper"
+  | "medicine"
+  | "jaundice"
+  | "cord_care"
+  | "bath_touch";
+
+export interface VoiceParseCandidate {
+  type: VoiceCandidateType;
+  recorded_at: string;
+  data: Record<string, unknown>;
+}
+
+export interface VoiceParseResult {
+  status: VoiceParseStatus;
+  transcript: string;
+  candidate?: VoiceParseCandidate;
+  missing_fields?: string[];
+  confidence: number;
+  message: string;
+}
+
 function getApiBase() {
   if (import.meta.env.VITE_API_URL) return `${import.meta.env.VITE_API_URL}/api`;
   return "/api";
@@ -317,6 +345,18 @@ export async function createRecord(data: {
     body: JSON.stringify(data),
   });
   return res.data;
+}
+
+export async function parseVoiceRecord(data: {
+  baby_id: number;
+  transcript: string;
+  recorded_at_context: string;
+  recognition_started_at: string;
+}): Promise<VoiceParseResult> {
+  return requestData<VoiceParseResult>("/records/voice-parse", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function fetchRecordById(recordId: number): Promise<BabyRecord> {

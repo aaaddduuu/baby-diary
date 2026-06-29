@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { verify } from "hono/jwt";
+import { parseRecordVoice } from "../lib/recordVoiceParser";
 
 type Bindings = {
   DB: D1Database;
@@ -84,6 +85,37 @@ records.post("/", async (c) => {
     return c.json({ success: true, data: record }, 201);
   } catch (e) {
     return c.json({ success: false, data: null, message: "服务器错误" }, 500);
+  }
+});
+
+records.post("/voice-parse", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const body = await c.req.json();
+    const {
+      baby_id,
+      transcript,
+      recorded_at_context,
+      recognition_started_at,
+    } = body;
+
+    if (!baby_id || typeof transcript !== "string" || !recorded_at_context || !recognition_started_at) {
+      return c.json({ success: false, data: null, message: "缺少语音解析参数" }, 400);
+    }
+
+    if (!(await checkBabyAccess(c.env.DB, userId, baby_id))) {
+      return c.json({ success: false, data: null, message: "无权限访问该宝宝" }, 403);
+    }
+
+    const result = parseRecordVoice({
+      transcript,
+      recordedAtContext: String(recorded_at_context),
+      recognitionStartedAt: String(recognition_started_at),
+    });
+
+    return c.json({ success: true, data: result });
+  } catch {
+    return c.json({ success: false, data: null, message: "语音解析失败，请稍后再试" }, 500);
   }
 });
 
