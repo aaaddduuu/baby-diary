@@ -86,6 +86,7 @@ type RecordFormSnapshot = {
 };
 
 const VOICE_NOTICE_KEY = "voice_record_notice_seen_v1";
+const VOICE_RECORD_ENABLED = false;
 
 const RECORD_TYPE_LABELS: Record<string, string> = {
   breast_milk: "母乳",
@@ -422,7 +423,7 @@ export default function AddRecordPage() {
   const [preVoiceSnapshot, setPreVoiceSnapshot] = useState<RecordFormSnapshot | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  const canUseVoiceInput = isSpeechRecognitionSupported() && !isStandaloneWebApp();
+  const canUseVoiceInput = VOICE_RECORD_ENABLED && isSpeechRecognitionSupported() && !isStandaloneWebApp();
   const voiceUnavailableMessage = isStandaloneWebApp()
     ? "主屏幕模式暂不支持语音输入，请在浏览器中打开。"
     : "当前浏览器暂不支持语音输入。";
@@ -885,43 +886,45 @@ export default function AddRecordPage() {
             </div>
           ) : null}
 
-          <SectionCard className="p-4">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <div className="panel-title text-[17px]">语音快捷录入</div>
-                <div className="panel-note mt-1">当前支持母乳、配方奶、睡眠、体温</div>
-              </div>
-              <span className="rounded-full bg-[#EAF8F2] px-3 py-1 text-[11px] font-bold text-[#2D805E]">v1</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleVoiceEntryClick}
-              disabled={voiceSession?.status === "listening" || voiceSession?.status === "transcribed"}
-              className={`w-full rounded-[24px] border px-4 py-4 text-left transition-all ${
-                canUseVoiceInput
-                  ? "border-[#D8EEE1] bg-[linear-gradient(135deg,#F8FFFB_0%,#EEF8F3_100%)] shadow-[0_14px_32px_rgba(47,155,115,.14)]"
-                  : "border-[#E8E1D5] bg-[#F8F5EE]"
-              } disabled:opacity-60`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${canUseVoiceInput ? "bg-white text-[#2D9B6A]" : "bg-white/70 text-[#9A9388]"}`}>
-                  🎙️
+          {VOICE_RECORD_ENABLED ? (
+            <SectionCard className="p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="panel-title text-[17px]">语音快捷录入</div>
+                  <div className="panel-note mt-1">当前支持母乳、配方奶、睡眠、体温</div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className={`text-sm font-bold ${canUseVoiceInput ? "text-[#21382E]" : "text-[#7A8B80]"}`}>
-                    {voiceSession?.status === "listening" ? "正在听你说…" : canUseVoiceInput ? "点击开始语音录入" : "当前环境暂不支持语音输入"}
+                <span className="rounded-full bg-[#EAF8F2] px-3 py-1 text-[11px] font-bold text-[#2D805E]">v1</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleVoiceEntryClick}
+                disabled={voiceSession?.status === "listening" || voiceSession?.status === "transcribed"}
+                className={`w-full rounded-[24px] border px-4 py-4 text-left transition-all ${
+                  canUseVoiceInput
+                    ? "border-[#D8EEE1] bg-[linear-gradient(135deg,#F8FFFB_0%,#EEF8F3_100%)] shadow-[0_14px_32px_rgba(47,155,115,.14)]"
+                    : "border-[#E8E1D5] bg-[#F8F5EE]"
+                } disabled:opacity-60`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${canUseVoiceInput ? "bg-white text-[#2D9B6A]" : "bg-white/70 text-[#9A9388]"}`}>
+                    🎙️
                   </div>
-                  <div className="mt-1 text-sm leading-6 text-[#6B7C72]">
-                    {canUseVoiceInput
-                      ? "例如：左边喂了十二分钟、喝了120毫升奶粉、体温38.2耳温。"
-                      : voiceUnavailableMessage}
+                  <div className="min-w-0 flex-1">
+                    <div className={`text-sm font-bold ${canUseVoiceInput ? "text-[#21382E]" : "text-[#7A8B80]"}`}>
+                      {voiceSession?.status === "listening" ? "正在听你说…" : canUseVoiceInput ? "点击开始语音录入" : "当前环境暂不支持语音输入"}
+                    </div>
+                    <div className="mt-1 text-sm leading-6 text-[#6B7C72]">
+                      {canUseVoiceInput
+                        ? "例如：左边喂了十二分钟、喝了120毫升奶粉、体温38.2耳温。"
+                        : voiceUnavailableMessage}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </button>
-          </SectionCard>
+              </button>
+            </SectionCard>
+          ) : null}
 
-          {voiceSession && voiceSession.status !== "error" ? (
+          {VOICE_RECORD_ENABLED && voiceSession && voiceSession.status !== "error" ? (
             <VoiceSummaryCard
               session={voiceSession}
               pageMode={pageMode}
@@ -934,7 +937,7 @@ export default function AddRecordPage() {
             />
           ) : null}
 
-          {voiceSession?.status === "error" ? (
+          {VOICE_RECORD_ENABLED && voiceSession?.status === "error" ? (
             <div className="rounded-[20px] border border-[#F3C6C6] bg-[#FFF4F4] px-4 py-3 text-sm text-danger">
               {voiceSession.message}
             </div>
@@ -1407,11 +1410,13 @@ export default function AddRecordPage() {
         onConfirm={handleFormulaKeyboardConfirm}
         onCancel={() => setShowFormulaKeyboard(false)}
       />
-      <VoicePermissionSheet
-        visible={showVoiceNotice}
-        onConfirm={handleVoiceNoticeConfirm}
-        onCancel={() => setShowVoiceNotice(false)}
-      />
+      {VOICE_RECORD_ENABLED ? (
+        <VoicePermissionSheet
+          visible={showVoiceNotice}
+          onConfirm={handleVoiceNoticeConfirm}
+          onCancel={() => setShowVoiceNotice(false)}
+        />
+      ) : null}
     </Layout>
   );
 }
