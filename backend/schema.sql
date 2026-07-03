@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   baby_id INTEGER NOT NULL REFERENCES babies(id),
   member_id INTEGER REFERENCES family_members(id),
+  direction TEXT NOT NULL DEFAULT 'expense' CHECK(direction IN ('expense', 'income')),
   category TEXT NOT NULL,
   amount REAL NOT NULL,
   name TEXT NOT NULL,

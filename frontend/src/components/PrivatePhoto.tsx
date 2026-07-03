@@ -6,11 +6,14 @@ interface PrivatePhotoProps {
   alt: string;
   className?: string;
   onClick?: () => void;
+  contentType?: string;
+  videoControls?: boolean;
 }
 
-export default function PrivatePhoto({ path, alt, className = "", onClick }: PrivatePhotoProps) {
+export default function PrivatePhoto({ path, alt, className = "", onClick, contentType, videoControls = false }: PrivatePhotoProps) {
   const [source, setSource] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const isVideo = contentType?.startsWith("video/");
 
   useEffect(() => {
     let active = true;
@@ -37,7 +40,7 @@ export default function PrivatePhoto({ path, alt, className = "", onClick }: Pri
   if (failed) {
     return (
       <div className={`flex items-center justify-center bg-[#EEF1EC] text-xs font-semibold text-[#7A8B80] ${className}`}>
-        照片加载失败
+        媒体加载失败
       </div>
     );
   }
@@ -47,11 +50,26 @@ export default function PrivatePhoto({ path, alt, className = "", onClick }: Pri
   }
 
   return (
-    <img
-      src={source}
-      alt={alt}
-      onClick={onClick}
-      className={`block object-cover ${onClick ? "cursor-pointer" : ""} ${className}`}
-    />
+    isVideo ? (
+      <video
+        src={source}
+        onClick={onClick}
+        className={`block object-cover ${onClick ? "cursor-pointer" : ""} ${className}`}
+        playsInline
+        muted={!videoControls}
+        controls={videoControls}
+        autoPlay
+        loop={!videoControls}
+        preload="auto"
+        aria-label={alt}
+      />
+    ) : (
+      <img
+        src={source}
+        alt={alt}
+        onClick={onClick}
+        className={`block object-cover ${onClick ? "cursor-pointer" : ""} ${className}`}
+      />
+    )
   );
 }

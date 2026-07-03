@@ -21,6 +21,7 @@ import {
 
 const TYPE_META: Record<string, { iconName: RecordIconName; label: string; tone: string; surface: string }> = {
   breast_milk: { iconName: "breast_milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  breast_milk_bottle: { iconName: "breast_milk_bottle", label: "瓶喂母乳", tone: "#D56B8D", surface: "#FFF2F7" },
   formula: { iconName: "formula", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
   sleep: { iconName: "sleep", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
   diaper: { iconName: "diaper_wet", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
@@ -73,7 +74,7 @@ function formatDetail(record: BabyRecord): string {
     if (data.side === "right") return `右侧${data.rightMin}分`;
     return `双侧${(data.leftMin || 0) + (data.rightMin || 0)}分`;
   }
-  if (record.type === "formula") {
+  if (record.type === "formula" || record.type === "breast_milk_bottle") {
     return `${data.ml}ml`;
   }
   if (record.type === "sleep") {
@@ -139,7 +140,7 @@ function calcStats(records: BabyRecord[]) {
 
   return {
     breastCount: records.filter(r => r.type === "breast_milk").length,
-    feedMl: records.filter(r => r.type === "formula").reduce((sum, r) => sum + (safeJsonParse(r.data).ml || 0), 0),
+    feedMl: records.filter(r => r.type === "formula" || r.type === "breast_milk_bottle").reduce((sum, r) => sum + (safeJsonParse(r.data).ml || 0), 0),
     formulaMl: records.filter(r => r.type === "formula").reduce((sum, r) => sum + (safeJsonParse(r.data).ml || 0), 0),
     sleepMinutes: records.reduce((sum, r) => sum + calcSleepMinutes(r), 0),
     medicineCount: records.filter(r => r.type === "medicine").length,

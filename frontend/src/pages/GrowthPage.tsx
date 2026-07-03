@@ -12,10 +12,17 @@ import {
   updateGrowthRecord,
 } from "../lib/api";
 import type { GrowthRecord } from "../lib/api";
+import {
+  formatMeasurementNumber,
+  formatWeightKg,
+  getWeightInputValue,
+  parseWeightInput,
+} from "../lib/growth";
 import { getWHOData } from "../lib/who-data";
 import { getLocalDateString } from "./recordFormShared";
 
 type TabType = "weight" | "height" | "head";
+type RangeOption = 1 | 3 | 6 | 12 | 24;
 
 const TABS: { key: TabType; label: string; unit: string; headline: string }[] = [
   { key: "weight", label: "体重", unit: "kg", headline: "关注最近的体重变化" },
@@ -23,11 +30,29 @@ const TABS: { key: TabType; label: string; unit: string; headline: string }[] = 
   { key: "head", label: "头围", unit: "cm", headline: "记录头围发展趋势" },
 ];
 
+const RANGE_OPTIONS: RangeOption[] = [1, 3, 6, 12, 24];
+
 function calcMonthDiff(birthDate: string, measureDate: string): number {
   const birth = new Date(birthDate);
   const measure = new Date(measureDate);
   const diffMs = measure.getTime() - birth.getTime();
   return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
+}
+
+function calcMonthDiffPrecise(birthDate: string, measureDate: string): number {
+  const birth = new Date(birthDate);
+  const measure = new Date(measureDate);
+  const diffMs = measure.getTime() - birth.getTime();
+  const monthDiff = diffMs / (1000 * 60 * 60 * 24 * 30.44);
+  return Math.max(0, Math.round(monthDiff * 10) / 10);
+}
+
+function getDefaultRange(maxMonth: number): RangeOption {
+  if (maxMonth <= 1) return 1;
+  if (maxMonth <= 3) return 3;
+  if (maxMonth <= 6) return 6;
+  if (maxMonth <= 12) return 12;
+  return 24;
 }
 
 function getField(record: GrowthRecord, type: TabType): number | null {
@@ -80,7 +105,8 @@ function getPercentileLabel(value: number, whoData: { p3: number; p50: number; p
 
 function formatMetric(value: number | null | undefined, unit: string) {
   if (value === null || value === undefined) return "--";
-  return `${value}${unit}`;
+  if (unit === "kg") return formatWeightKg(value);
+  return `${formatMeasurementNumber(value)}${unit}`;
 }
 
 function Chip({
@@ -141,6 +167,7 @@ export default function GrowthPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<number | null>(null);
+  const [rangeMonths, setRangeMonths] = useState<RangeOption | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -168,7 +195,7 @@ export default function GrowthPage() {
         const value = getField(record, activeTab);
         if (value === null || value === undefined) return null;
         return {
-          month: calcMonthDiff(baby.birth_date, record.measured_at),
+          month: calcMonthDiffPrecise(baby.birth_date, record.measured_at),
           value,
         };
       })
@@ -188,15 +215,28 @@ export default function GrowthPage() {
   const latestMetricValue = formatMetric(latestTabValue, currentTab.unit);
 
   const months = baby ? calcMonthDiff(baby.birth_date, measuredAt) : 0;
-  const weightValidation = weight ? getValidation(months, "weight", Number(weight)) : null;
+  const parsedWeight = parseWeightInput(weight);
+  const normalizedWeight = parsedWeight.kg;
+  const weightValidation = normalizedWeight ? getValidation(months, "weight", normalizedWeight) : null;
   const heightValidation = height ? getValidation(months, "height", Number(height)) : null;
   const headValidation = headCirc ? getValidation(months, "head", Number(headCirc)) : null;
+  const hasInvalidWeightInput = Boolean(weight.trim() && normalizedWeight === null);
 
   const totalMeasurements = useMemo(() => {
     return records.filter((record) => getField(record, activeTab) !== null).length;
   }, [records, activeTab]);
 
-  const hasMeasurementInput = Boolean(weight.trim() || height.trim() || headCirc.trim());
+  const maxChartMonth = useMemo(() => {
+    if (!userPoints.length) return 0;
+    return Math.max(...userPoints.map((point) => point.month));
+  }, [userPoints]);
+  const activeRangeMonths = rangeMonths ?? getDefaultRange(maxChartMonth);
+
+  const hasMeasurementInput = Boolean(normalizedWeight !== null || height.trim() || headCirc.trim());
+
+  useEffect(() => {
+    setRangeMonths(null);
+  }, [activeTab]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -211,7 +251,7 @@ export default function GrowthPage() {
 
   const handleEdit = (record: GrowthRecord) => {
     setEditingId(record.id);
-    setWeight(record.weight ? String(record.weight) : "");
+    setWeight(getWeightInputValue(record.weight));
     setHeight(record.height ? String(record.height) : "");
     setHeadCirc(record.head_circumference ? String(record.head_circumference) : "");
     setMeasuredAt(record.measured_at);
@@ -232,6 +272,11 @@ export default function GrowthPage() {
   const handleSave = async () => {
     if (!baby) return;
 
+    if (hasInvalidWeightInput) {
+      setError("请输入有效体重，例如 2.735 或 2735");
+      return;
+    }
+
     if (!hasMeasurementInput) {
       setError("请至少填写一项测量数据");
       return;
@@ -242,7 +287,7 @@ export default function GrowthPage() {
 
     try {
       const payload = {
-        weight: weight ? Number(weight) : null,
+        weight: normalizedWeight,
         height: height ? Number(height) : null,
         head_circumference: headCirc ? Number(headCirc) : null,
         measured_at: measuredAt,
@@ -335,12 +380,23 @@ export default function GrowthPage() {
                     <FieldLabel>体重 (kg)</FieldLabel>
                     <input
                       className={inputClass(weightValidation)}
-                      type="number"
-                      step="0.1"
-                      placeholder="如：7.5"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="如：2.735 或 2735"
                       value={weight}
                       onChange={(event) => setWeight(event.target.value)}
                     />
+                    {parsedWeight.mode === "g" || parsedWeight.mode === "auto-grams" ? (
+                      <div className="text-sm text-[#2F9B73]">
+                        {parsedWeight.rawNumber !== null && normalizedWeight !== null
+                          ? `将按 ${parsedWeight.rawNumber}g 自动换算为 ${formatWeightKg(normalizedWeight)}`
+                          : ""}
+                      </div>
+                    ) : hasInvalidWeightInput ? (
+                      <div className="text-sm text-danger">请输入数字，例如 2.735 或 2735</div>
+                    ) : (
+                      <div className="text-xs text-[#7A8B80]">支持直接输入克数，像 2735 会自动按 2.735kg 处理。</div>
+                    )}
                     {renderValueState(weightValidation) ? (
                       <div className="text-sm text-[#9D6A1A]">{renderValueState(weightValidation)}</div>
                     ) : null}
@@ -468,10 +524,25 @@ export default function GrowthPage() {
                 <div className="rounded-full bg-[#F6F3EA] px-3 py-1 text-xs font-semibold text-[#6E6254]">WHO</div>
               </div>
 
+              <div className="mb-3 flex flex-wrap gap-2">
+                {RANGE_OPTIONS.map((option) => (
+                  <Chip
+                    key={option}
+                    active={activeRangeMonths === option}
+                    label={`${option}月`}
+                    onClick={() => setRangeMonths(option)}
+                  />
+                ))}
+              </div>
+
               <div className="overflow-x-auto rounded-[22px] bg-white p-3 shadow-soft">
                 <div className="flex min-w-[340px] justify-center">
-                  <GrowthChart whoData={whoData} userPoints={userPoints} unit={currentTab.unit} />
+                  <GrowthChart whoData={whoData} userPoints={userPoints} unit={currentTab.unit} rangeMonths={activeRangeMonths} />
                 </div>
+              </div>
+
+              <div className="mt-3 text-xs text-[#7A8B80]">
+                当前按最近 {activeRangeMonths} 个月展示，新生儿前几周会按小数月展开，变化会更明显。
               </div>
 
               <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#6D7C73]">
@@ -528,7 +599,7 @@ export default function GrowthPage() {
 
               {latestTabValue !== null && whoData.length > 0 ? (
                 <div className="mt-4 rounded-[20px] bg-[#F7FBF8] px-4 py-3 text-sm text-[#375645]">
-                  当前{currentTab.label}为 <span className="font-semibold">{latestTabValue}{currentTab.unit}</span>，位于同月龄
+                  当前{currentTab.label}为 <span className="font-semibold">{formatMetric(latestTabValue, currentTab.unit)}</span>，位于同月龄
                   <span className="font-semibold text-[#2F9B73]"> {getPercentileLabel(latestTabValue, whoData)} </span>
                   区间。
                 </div>
@@ -557,7 +628,7 @@ export default function GrowthPage() {
                             <div className="mt-2 flex flex-wrap gap-2">
                               {record.weight !== null ? (
                                 <span className="rounded-full bg-[#F0FAF6] px-3 py-1 text-xs font-semibold text-[#2F9B73]">
-                                  体重 {record.weight}kg
+                                  体重 {formatWeightKg(record.weight)}
                                 </span>
                               ) : null}
                               {record.height !== null ? (

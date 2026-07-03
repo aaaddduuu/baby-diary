@@ -129,11 +129,9 @@ momentShares.post("/", async (c) => {
     const shareMonth = body.share_month;
     const expiresOn = body.expires_on;
     const today = todayInShanghai();
-    if (!Number.isInteger(babyId) || babyId <= 0 || !isValidMonth(shareMonth) || !isValidDate(expiresOn)) {
-      return c.json({ success: false, data: null, message: "请检查分享月份和有效期" }, 400);
-    }
-    if (shareMonth > today.slice(0, 7)) {
-      return c.json({ success: false, data: null, message: "不能分享未来月份" }, 400);
+    const normalizedShareMonth = isValidMonth(shareMonth) ? shareMonth : today.slice(0, 7);
+    if (!Number.isInteger(babyId) || babyId <= 0 || !isValidDate(expiresOn)) {
+      return c.json({ success: false, data: null, message: "请检查有效期" }, 400);
     }
     if (expiresOn < today) {
       return c.json({ success: false, data: null, message: "有效期不能早于今天" }, 400);
@@ -143,10 +141,10 @@ momentShares.post("/", async (c) => {
     }
 
     const moment = await c.env.DB.prepare(
-      "SELECT id FROM daily_moments WHERE baby_id = ? AND substr(entry_date, 1, 7) = ? LIMIT 1",
-    ).bind(babyId, shareMonth).first();
+      "SELECT id FROM daily_moments WHERE baby_id = ? LIMIT 1",
+    ).bind(babyId).first();
     if (!moment) {
-      return c.json({ success: false, data: null, message: "这个月还没有可分享的成长时光" }, 409);
+      return c.json({ success: false, data: null, message: "还没有可分享的成长时光" }, 409);
     }
 
     const token = generateShareToken();
@@ -154,7 +152,7 @@ momentShares.post("/", async (c) => {
     const result = await c.env.DB.prepare(
       `INSERT INTO moment_share_links (baby_id, created_by, token_hash, share_month, expires_on)
        VALUES (?, ?, ?, ?, ?)`,
-    ).bind(babyId, c.get("userId"), tokenHash, shareMonth, expiresOn).run();
+    ).bind(babyId, c.get("userId"), tokenHash, normalizedShareMonth, expiresOn).run();
 
     return c.json({
       success: true,
@@ -162,7 +160,7 @@ momentShares.post("/", async (c) => {
         id: Number(result.meta.last_row_id),
         baby_id: babyId,
         created_by: c.get("userId"),
-        share_month: shareMonth,
+        share_month: normalizedShareMonth,
         expires_on: expiresOn,
         revoked_at: null,
         created_at: new Date().toISOString(),

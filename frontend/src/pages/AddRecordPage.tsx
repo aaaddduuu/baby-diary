@@ -90,6 +90,7 @@ const VOICE_RECORD_ENABLED = false;
 
 const RECORD_TYPE_LABELS: Record<string, string> = {
   breast_milk: "母乳",
+  breast_milk_bottle: "瓶喂母乳",
   formula: "配方奶",
   sleep: "睡眠",
   diaper: "尿布",
@@ -429,13 +430,15 @@ export default function AddRecordPage() {
     : "当前浏览器暂不支持语音输入。";
 
   const diaperType = getDiaperTypeFromRecordType(type);
+  const isVolumeFeedType = type === "formula" || type === "breast_milk_bottle";
+  const volumeFeedLabel = type === "breast_milk_bottle" ? "瓶喂母乳" : "配方奶";
   const shouldSelectDiaperColor = preferences.diaperDetails && (diaperType === "dirty" || diaperType === "both");
 
   useEffect(() => {
-    if (type === "formula") {
+    if (isVolumeFeedType) {
       localStorage.setItem("last_formula_ml", String(formulaMl));
     }
-  }, [formulaMl, type]);
+  }, [formulaMl, isVolumeFeedType]);
 
   useEffect(() => () => {
     recognitionRef.current?.abort();
@@ -544,6 +547,14 @@ export default function AddRecordPage() {
     setShowFormulaKeyboard(false);
   };
 
+  const handleRecordedAtChange = (nextRecordedAt: RecordDateTimeValue) => {
+    setRecordedAt(nextRecordedAt);
+    if (type === "sleep") {
+      setSleepStart((prev) => ({ ...prev, date: nextRecordedAt.date }));
+      setSleepEnd((prev) => ({ ...prev, date: nextRecordedAt.date }));
+    }
+  };
+
   const buildPayload = () => {
     let data: Record<string, unknown> = {};
 
@@ -554,7 +565,7 @@ export default function AddRecordPage() {
         rightMin: breastSide === "left" ? 0 : breastRight,
         note,
       };
-    } else if (type === "formula") {
+    } else if (isVolumeFeedType) {
       data = { ml: formulaMl, note };
     } else if (type === "sleep") {
       const startStr = toLocalDateTimeString(sleepStart);
@@ -943,6 +954,12 @@ export default function AddRecordPage() {
             </div>
           ) : null}
 
+          <RecordTimeField
+            value={recordedAt}
+            onChange={handleRecordedAtChange}
+            invalid={isRecordTimeInFuture(recordedAt)}
+          />
+
           <SectionCard className="p-4">
             <div className="mb-3">
               <div className="panel-title text-[17px]">记录类型</div>
@@ -963,12 +980,6 @@ export default function AddRecordPage() {
               ))}
             </div>
           </SectionCard>
-
-          <RecordTimeField
-            value={recordedAt}
-            onChange={setRecordedAt}
-            invalid={isRecordTimeInFuture(recordedAt)}
-          />
 
           {type === "breast_milk" ? (
             <>
@@ -1015,7 +1026,7 @@ export default function AddRecordPage() {
             </>
           ) : null}
 
-          {type === "formula" ? (
+          {isVolumeFeedType ? (
             <>
               <SectionCard className="p-4">
                 <div className="mb-3">
@@ -1053,7 +1064,7 @@ export default function AddRecordPage() {
                   <div className="panel-note mt-1">增减 10ml，保持记录速度</div>
                 </div>
                 <AmountAdjuster
-                  label="配方奶"
+                  label={volumeFeedLabel}
                   value={formulaMl}
                   suffix="ml"
                   onDecrease={() => handleFormulaAdjust(-10)}

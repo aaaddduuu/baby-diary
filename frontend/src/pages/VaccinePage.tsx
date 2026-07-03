@@ -8,27 +8,117 @@ import { createVaccine, deleteVaccine, fetchVaccines, updateVaccine } from "../l
 import type { VaccineRecord as Vaccine } from "../lib/api";
 import { getLocalDateString } from "./recordFormShared";
 
+type VaccineFamilyKey = "bcg" | "hepb" | "polio" | "dtap" | "measles";
+
+type VaccinePlanEntry = {
+  label: string;
+  key: VaccineFamilyKey;
+  aliases: string[];
+};
+
+type VaccinePlanItem = {
+  age: string;
+  months?: number;
+  years?: number;
+  withinDays?: number;
+  entries: VaccinePlanEntry[];
+};
+
 const DEFAULT_VACCINES = [
-  { name: "乙肝疫苗 第1针", age: "出生后 24h" },
-  { name: "卡介苗", age: "出生后" },
-  { name: "脊灰减毒活疫苗", age: "2月龄" },
-  { name: "百白破 第1针", age: "3月龄" },
-  { name: "脊灰减毒活疫苗", age: "3月龄" },
-  { name: "百白破 第2针", age: "4月龄" },
-  { name: "脊灰减毒活疫苗", age: "4月龄" },
-  { name: "百白破 第3针", age: "5月龄" },
-  { name: "乙肝疫苗 第3针", age: "6月龄" },
-  { name: "A群流脑疫苗 第1针", age: "6月龄" },
-  { name: "麻腮风疫苗", age: "8月龄" },
-  { name: "乙脑减毒活疫苗", age: "8月龄" },
-  { name: "甲肝减毒活疫苗", age: "18月龄" },
-  { name: "百白破 第4针", age: "18月龄" },
-  { name: "麻腮风疫苗 第2针", age: "2岁" },
-  { name: "乙脑减毒活疫苗 第2针", age: "2岁" },
-  { name: "A群C群流脑疫苗", age: "3岁" },
-  { name: "脊灰灭活疫苗", age: "4岁" },
-  { name: "白破疫苗", age: "6岁" },
+  { name: "卡介苗", age: "出生" },
+  { name: "乙肝疫苗", age: "出生" },
+  { name: "脊髓灰质炎三价混合疫苗", age: "2个月" },
+  { name: "百白破混合制剂", age: "3个月" },
+  { name: "麻疹疫苗", age: "8个月" },
+  { name: "百白破混合制剂复种", age: "1.5-2岁" },
+  { name: "脊髓灰质炎三价混合疫苗复种", age: "4岁" },
+  { name: "麻疹疫苗复种", age: "6岁" },
 ];
+
+const REFERENCE_VACCINE_PLAN: VaccinePlanItem[] = [
+  {
+    age: "出生",
+    withinDays: 28,
+    entries: [
+      { label: "卡介苗", key: "bcg", aliases: ["卡介苗"] },
+      { label: "乙肝疫苗", key: "hepb", aliases: ["乙肝疫苗"] },
+    ],
+  },
+  {
+    age: "1个月",
+    months: 1,
+    entries: [{ label: "乙肝疫苗", key: "hepb", aliases: ["乙肝疫苗"] }],
+  },
+  {
+    age: "2个月",
+    months: 2,
+    entries: [
+      { label: "脊髓灰质炎三价混合疫苗", key: "polio", aliases: ["脊髓灰质炎三价混合疫苗", "脊灰减毒活疫苗", "脊灰灭活疫苗"] },
+    ],
+  },
+  {
+    age: "3个月",
+    months: 3,
+    entries: [
+      { label: "脊髓灰质炎三价混合疫苗", key: "polio", aliases: ["脊髓灰质炎三价混合疫苗", "脊灰减毒活疫苗", "脊灰灭活疫苗"] },
+      { label: "百白破混合制剂", key: "dtap", aliases: ["百白破混合制剂", "百白破", "白破疫苗"] },
+    ],
+  },
+  {
+    age: "4个月",
+    months: 4,
+    entries: [
+      { label: "脊髓灰质炎三价混合疫苗", key: "polio", aliases: ["脊髓灰质炎三价混合疫苗", "脊灰减毒活疫苗", "脊灰灭活疫苗"] },
+      { label: "百白破混合制剂", key: "dtap", aliases: ["百白破混合制剂", "百白破", "白破疫苗"] },
+    ],
+  },
+  {
+    age: "5个月",
+    months: 5,
+    entries: [{ label: "百白破混合制剂", key: "dtap", aliases: ["百白破混合制剂", "百白破", "白破疫苗"] }],
+  },
+  {
+    age: "6个月",
+    months: 6,
+    entries: [{ label: "乙肝疫苗", key: "hepb", aliases: ["乙肝疫苗"] }],
+  },
+  {
+    age: "8个月",
+    months: 8,
+    entries: [{ label: "麻疹疫苗", key: "measles", aliases: ["麻疹疫苗", "麻腮风疫苗"] }],
+  },
+  {
+    age: "1.5-2岁",
+    months: 18,
+    entries: [{ label: "百白破混合制剂复种", key: "dtap", aliases: ["百白破混合制剂", "百白破", "白破疫苗"] }],
+  },
+  {
+    age: "4岁",
+    years: 4,
+    entries: [
+      { label: "脊髓灰质炎三价混合疫苗复种", key: "polio", aliases: ["脊髓灰质炎三价混合疫苗", "脊灰减毒活疫苗", "脊灰灭活疫苗"] },
+    ],
+  },
+  {
+    age: "6岁",
+    years: 6,
+    entries: [{ label: "麻疹疫苗复种", key: "measles", aliases: ["麻疹疫苗", "麻腮风疫苗"] }],
+  },
+];
+
+const VACCINE_FAMILY_ALIASES: Record<VaccineFamilyKey, string[]> = {
+  bcg: ["卡介苗"],
+  hepb: ["乙肝疫苗"],
+  polio: ["脊髓灰质炎三价混合疫苗", "脊灰减毒活疫苗", "脊灰灭活疫苗"],
+  dtap: ["百白破混合制剂", "百白破", "白破疫苗"],
+  measles: ["麻疹疫苗", "麻腮风疫苗"],
+};
+
+type VaccineFocus = {
+  item: VaccinePlanItem;
+  dueDate: Date;
+  isOverdue: boolean;
+};
 
 function calcDaysUntil(dateStr: string): number {
   const now = new Date();
@@ -42,6 +132,106 @@ function formatDate(dateStr: string | null): string {
   if (!dateStr) return "未设置";
   const date = new Date(dateStr);
   return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function normalizeVaccineName(name: string): string {
+  return name.replace(/\s+/g, "").replace(/[（）()]/g, "");
+}
+
+function isSameOrIncludedName(source: string, candidate: string): boolean {
+  return source.includes(candidate) || candidate.includes(source);
+}
+
+function formatReferenceDate(date: Date): string {
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function formatBabyAge(birthDate: string): string {
+  const birth = new Date(birthDate);
+  const today = new Date();
+  birth.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+  let days = today.getDate() - birth.getDate();
+
+  if (days < 0) {
+    const prevMonthLastDay = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    days += prevMonthLastDay;
+    months -= 1;
+  }
+  if (months < 0) {
+    months += 12;
+    years -= 1;
+  }
+
+  if (years > 0) return `${years}岁${months}个月`;
+  if (months > 0) return `${months}个月${days}天`;
+  return `出生${Math.max(1, Math.floor((today.getTime() - birth.getTime()) / 86400000) + 1)}天`;
+}
+
+function addScheduleOffset(birthDate: string, item: VaccinePlanItem): Date {
+  const birth = new Date(birthDate);
+  birth.setHours(0, 0, 0, 0);
+  const due = new Date(birth);
+
+  if (typeof item.withinDays === "number") due.setDate(due.getDate() + item.withinDays);
+  if (typeof item.months === "number") due.setMonth(due.getMonth() + item.months);
+  if (typeof item.years === "number") due.setFullYear(due.getFullYear() + item.years);
+
+  return due;
+}
+
+function countCompletedVaccines(vaccines: Vaccine[]) {
+  const counts: Record<VaccineFamilyKey, number> = {
+    bcg: 0,
+    hepb: 0,
+    polio: 0,
+    dtap: 0,
+    measles: 0,
+  };
+
+  vaccines
+    .filter((vaccine) => vaccine.status === "completed")
+    .forEach((vaccine) => {
+      const normalized = normalizeVaccineName(vaccine.name);
+      (Object.entries(VACCINE_FAMILY_ALIASES) as [VaccineFamilyKey, string[]][]).forEach(([key, aliases]) => {
+        const matched = aliases.some((alias) => isSameOrIncludedName(normalized, normalizeVaccineName(alias)));
+        if (matched) counts[key] += 1;
+      });
+    });
+
+  return counts;
+}
+
+function getRequiredCount(targetIndex: number, key: VaccineFamilyKey): number {
+  return REFERENCE_VACCINE_PLAN.slice(0, targetIndex + 1).reduce((total, item) => {
+    return total + item.entries.filter((entry) => entry.key === key).length;
+  }, 0);
+}
+
+function isPlanItemCompleted(targetIndex: number, completedCounts: Record<VaccineFamilyKey, number>): boolean {
+  const item = REFERENCE_VACCINE_PLAN[targetIndex];
+  const requiredKeys = Array.from(new Set(item.entries.map((entry) => entry.key)));
+  return requiredKeys.every((key) => completedCounts[key] >= getRequiredCount(targetIndex, key));
+}
+
+function getCurrentFocus(birthDate: string, vaccines: Vaccine[]): VaccineFocus | null {
+  const completedCounts = countCompletedVaccines(vaccines);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const firstIncompleteIndex = REFERENCE_VACCINE_PLAN.findIndex((_, index) => !isPlanItemCompleted(index, completedCounts));
+  if (firstIncompleteIndex === -1) return null;
+
+  const item = REFERENCE_VACCINE_PLAN[firstIncompleteIndex];
+  const dueDate = addScheduleOffset(birthDate, item);
+  return {
+    item,
+    dueDate,
+    isOverdue: dueDate.getTime() < today.getTime(),
+  };
 }
 
 function StatusChip({
@@ -187,6 +377,16 @@ export default function VaccinePage() {
     if (listFilter === "completed") return others.filter((vaccine) => vaccine.status === "completed");
     return others;
   }, [listFilter, others]);
+
+  const vaccineFocus = useMemo(() => {
+    if (!baby?.birth_date) return null;
+    return getCurrentFocus(baby.birth_date, vaccines);
+  }, [baby?.birth_date, vaccines]);
+
+  const babyAgeText = useMemo(() => {
+    if (!baby?.birth_date) return "";
+    return formatBabyAge(baby.birth_date);
+  }, [baby?.birth_date]);
 
   const handleToggleStatus = async (vaccine: Vaccine) => {
     if (!baby) return;
@@ -554,6 +754,86 @@ export default function VaccinePage() {
           </div>
         ) : (
           <div className="space-y-4 px-4 pb-6 pt-4">
+            <SectionCard className="overflow-hidden">
+              <div className="border-b border-[#EFE8DD] px-4 py-4">
+                <div className="panel-title text-[17px]">接种时间表参考</div>
+                <div className="panel-note mt-1">按你提供的接种单整理，并结合宝宝出生日期自动定位当前该关注的针次。</div>
+              </div>
+
+              <div className="space-y-4 p-4">
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <div className="rounded-[20px] bg-[#F7FAF8] px-4 py-3">
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#6A8575]">当前年龄</div>
+                    <div className="mt-1 text-base font-bold text-[#1A5C3A]">{babyAgeText}</div>
+                  </div>
+                  {vaccineFocus ? (
+                    <div className={`rounded-[20px] px-4 py-3 ${vaccineFocus.isOverdue ? "bg-[#FFF4F4]" : "bg-[#FFF8EC]"}`}>
+                      <div className={`text-xs font-bold uppercase tracking-[0.18em] ${vaccineFocus.isOverdue ? "text-[#B65454]" : "text-[#9D6A1A]"}`}>
+                        {vaccineFocus.isOverdue ? "当前漏打" : "当前关注"}
+                      </div>
+                      <div className="mt-1 text-sm font-bold text-[#21382E]">
+                        {vaccineFocus.item.age} · {vaccineFocus.item.entries.map((entry) => entry.label).join("、")}
+                      </div>
+                      <div className="mt-1 text-xs text-[#7A8B80]">参考节点：{formatReferenceDate(vaccineFocus.dueDate)}</div>
+                    </div>
+                  ) : (
+                    <div className="rounded-[20px] bg-[#EAF8F2] px-4 py-3">
+                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#49735D]">当前状态</div>
+                      <div className="mt-1 text-sm font-bold text-[#1A5C3A]">这份参考时间表里的针次都已完成</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {REFERENCE_VACCINE_PLAN.map((item) => {
+                    const isFocused = vaccineFocus?.item.age === item.age;
+                    return (
+                      <div
+                        key={item.age}
+                        className={`rounded-[22px] border px-4 py-4 transition-all ${
+                          isFocused
+                            ? vaccineFocus?.isOverdue
+                              ? "border-[#F2C9C9] bg-[#FFF7F7] shadow-[0_10px_24px_rgba(182,84,84,.08)]"
+                              : "border-[#F2DFC0] bg-[#FFF8EC] shadow-[0_10px_24px_rgba(231,193,120,.12)]"
+                            : "border-[#F1ECE3] bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              isFocused
+                                ? vaccineFocus?.isOverdue
+                                  ? "bg-[#FDE2E2] text-[#B65454]"
+                                  : "bg-white text-[#9D6A1A]"
+                                : "bg-[#F6F3EA] text-[#6E6254]"
+                            }`}
+                          >
+                            {item.age}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {isFocused ? (
+                              <div className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                vaccineFocus?.isOverdue ? "bg-[#FDE2E2] text-[#B65454]" : "bg-[#FFF1CF] text-[#9D6A1A]"
+                              }`}>
+                                {vaccineFocus?.isOverdue ? "需要补种关注" : "当前建议关注"}
+                              </div>
+                            ) : null}
+                            <div className="text-sm font-semibold text-[#21382E]">
+                              {item.entries.map((entry) => entry.label).join("、")}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-[18px] bg-[#F7F4EE] px-4 py-3 text-xs leading-6 text-[#7A8B80]">
+                  说明：不同地区联合疫苗方案可能略有差异，实际接种请以当地接种门诊和医生建议为准。
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard className="p-4">
               <div className="mb-3">
                 <div className="panel-title text-[17px]">列表筛选</div>

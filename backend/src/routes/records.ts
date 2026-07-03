@@ -53,7 +53,7 @@ records.post("/", async (c) => {
       return c.json({ success: false, data: null, message: "缺少必填字段" }, 400);
     }
 
-    const validTypes = ["breast_milk", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
+    const validTypes = ["breast_milk", "breast_milk_bottle", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
     if (!validTypes.includes(type)) {
       return c.json({ success: false, data: null, message: "无效的记录类型" }, 400);
     }
@@ -196,7 +196,7 @@ records.put("/:id", async (c) => {
     const { type, data, recorded_at } = body;
     const nextType = type || existing.type;
     const nextData = data || JSON.parse(String(existing.data));
-    const validTypes = ["breast_milk", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
+    const validTypes = ["breast_milk", "breast_milk_bottle", "formula", "sleep", "diaper", "growth", "medicine", "temperature", "jaundice", "cord_care", "bath_touch"];
     if (!validTypes.includes(String(nextType))) {
       return c.json({ success: false, data: null, message: "无效的记录类型" }, 400);
     }

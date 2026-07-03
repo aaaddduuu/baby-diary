@@ -185,6 +185,8 @@ export default function EditRecordPage() {
   const [note, setNote] = useState("");
   const [recordedAt, setRecordedAt] = useState(getCurrentRecordTime);
   const diaperType = getDiaperTypeFromRecordType(type);
+  const isVolumeFeedType = type === "formula" || type === "breast_milk_bottle";
+  const volumeFeedLabel = type === "breast_milk_bottle" ? "瓶喂母乳" : "配方奶";
   const shouldSelectDiaperColor = preferences.diaperDetails && (diaperType === "dirty" || diaperType === "both");
   const visibleRecordTypes = useMemo(() => {
     const visible = RECORD_TYPES.filter((recordType) => isRecordTypeVisible(recordType.type, preferences, "add"));
@@ -207,7 +209,7 @@ export default function EditRecordPage() {
           setBreastSide(recordData.side || "both");
           setBreastLeft(recordData.leftMin || 0);
           setBreastRight(recordData.rightMin || 0);
-        } else if (record.type === "formula") {
+        } else if (record.type === "formula" || record.type === "breast_milk_bottle") {
           setFormulaMl(recordData.ml || 120);
           setFormulaPreset(FORMULA_PRESETS.includes(recordData.ml) ? recordData.ml : null);
         } else if (record.type === "sleep") {
@@ -301,7 +303,7 @@ export default function EditRecordPage() {
         rightMin: breastSide === "left" ? 0 : breastRight,
         note,
       };
-    } else if (type === "formula") {
+    } else if (isVolumeFeedType) {
       data = { ml: formulaMl, note };
     } else if (type === "sleep") {
       if (isInvalidTime) {
@@ -467,7 +469,7 @@ export default function EditRecordPage() {
             </>
           ) : null}
 
-          {type === "formula" ? (
+          {isVolumeFeedType ? (
             <>
               <SectionCard className="p-4">
                 <div className="mb-3">
@@ -505,7 +507,7 @@ export default function EditRecordPage() {
                   <div className="panel-note mt-1">按 10ml 增减，或选择常用奶量。</div>
                 </div>
                 <AmountAdjuster
-                  label="配方奶"
+                  label={volumeFeedLabel}
                   value={formulaMl}
                   suffix="ml"
                   onDecrease={() => handleFormulaAdjust(-10)}

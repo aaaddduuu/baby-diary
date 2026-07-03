@@ -22,6 +22,10 @@ type PendingPhoto = {
   preview: string;
 };
 
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/");
+}
+
 function localDateString(date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -155,11 +159,17 @@ export default function MomentEditorPage() {
     if (!files) return;
     setError("");
     const slots = 9 - totalPhotos;
-    const selected = Array.from(files)
-      .filter((file) => file.type.startsWith("image/"))
+    const accepted = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
+    const selected = accepted
       .slice(0, slots);
     if (selected.length < files.length) {
-      setError(slots <= 0 ? "每天最多上传 9 张照片" : `已保留前 ${selected.length} 张图片，每天最多 9 张`);
+      if (slots <= 0) {
+        setError("每天最多上传 9 个图片或视频");
+      } else if (accepted.length < files.length) {
+        setError(`已忽略不支持的文件，只保留前 ${selected.length} 个图片或视频`);
+      } else {
+        setError(`已保留前 ${selected.length} 个图片或视频，每天最多 9 个`);
+      }
     }
     setPendingPhotos((current) => [
       ...current,
@@ -239,8 +249,8 @@ export default function MomentEditorPage() {
 
       for (let index = 0; index < pendingPhotos.length; index += 1) {
         const photo = pendingPhotos[index];
-        setProgress(`正在上传第 ${index + 1} / ${pendingPhotos.length} 张照片…`);
-        const compressed = await compressPhoto(photo.file);
+        setProgress(`正在上传第 ${index + 1} / ${pendingPhotos.length} 个媒体…`);
+        const compressed = isVideoFile(photo.file) ? photo.file : await compressPhoto(photo.file);
         await uploadMomentPhoto(moment.id, compressed);
         uploadedIds.add(photo.id);
       }
@@ -266,12 +276,12 @@ export default function MomentEditorPage() {
 
   return (
     <Layout className="secondary-page">
-      <Header
-        title={editing ? "编辑成长时光" : "记录成长时光"}
-        subtitle="照片和一句话，就能留住这一天"
-        variant="hero"
-        back
-      />
+        <Header
+          title={editing ? "编辑成长时光" : "记录成长时光"}
+          subtitle="图片、视频和一句话，就能留住这一天"
+          variant="hero"
+          back
+        />
 
       <ScrollArea className="pb-28">
         <div className="space-y-4 px-4 pb-8 pt-4">
@@ -293,8 +303,8 @@ export default function MomentEditorPage() {
           <SectionCard className="p-4">
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <div className="panel-title">{entryDate === today ? "今天的照片" : "这一天的照片"}</div>
-                <div className="panel-note mt-1">支持多选，最多 9 张</div>
+                <div className="panel-title">{entryDate === today ? "今天的图片和视频" : "这一天的图片和视频"}</div>
+                <div className="panel-note mt-1">支持多选，最多 9 个</div>
               </div>
               <div className="font-tabular text-xs font-bold text-[#6C8275]">{totalPhotos} / 9</div>
             </div>
@@ -303,7 +313,10 @@ export default function MomentEditorPage() {
               <div className="mb-3 grid grid-cols-3 gap-2">
                 {visibleExistingPhotos.map((photo) => (
                   <div key={photo.id} className="relative aspect-square overflow-hidden rounded-[16px] bg-[#EEF2ED]">
-                    <PrivatePhoto path={photo.path} alt="已保存的宝宝照片" className="h-full w-full" />
+                    <PrivatePhoto path={photo.path} alt="已保存的宝宝媒体" contentType={photo.content_type} className="h-full w-full" />
+                    {photo.content_type.startsWith("video/") ? (
+                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => toggleExistingPhoto(photo.id)}
@@ -315,7 +328,14 @@ export default function MomentEditorPage() {
                 ))}
                 {pendingPhotos.map((photo) => (
                   <div key={photo.id} className="relative aspect-square overflow-hidden rounded-[16px] bg-[#EEF2ED]">
-                    <img src={photo.preview} alt="待上传的宝宝照片" className="h-full w-full object-cover" />
+                    {isVideoFile(photo.file) ? (
+                      <video src={photo.preview} className="h-full w-full object-cover" muted playsInline autoPlay loop preload="auto" aria-label="待上传的宝宝视频" />
+                    ) : (
+                      <img src={photo.preview} alt="待上传的宝宝照片" className="h-full w-full object-cover" />
+                    )}
+                    {isVideoFile(photo.file) ? (
+                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => removePendingPhoto(photo.id)}
@@ -330,18 +350,18 @@ export default function MomentEditorPage() {
 
             {photosToDelete.size > 0 ? (
               <button type="button" onClick={() => setPhotosToDelete(new Set())} className="mb-3 text-xs font-bold text-[#2D805E]">
-                撤销移除 {photosToDelete.size} 张照片
+                撤销移除 {photosToDelete.size} 个媒体
               </button>
             ) : null}
 
             <label className={`flex min-h-[92px] cursor-pointer flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-4 text-center ${totalPhotos >= 9 ? "border-[#D8DED9] bg-[#F5F6F4] opacity-55" : "border-[#A9D9C5] bg-[#F1FAF6]"}`}>
-              <span className="text-sm font-black text-[#2D805E]">从相册选择照片</span>
-              <span className="mt-1 text-xs leading-5 text-[#6C8275]">会自动压缩大图，保留适合手机查看的清晰度</span>
+              <span className="text-sm font-black text-[#2D805E]">从相册选择图片或视频</span>
+              <span className="mt-1 text-xs leading-5 text-[#6C8275]">图片会自动压缩；单个视频建议控制在 80MB 内</span>
               <input
                 type="file"
                 multiple
                 disabled={totalPhotos >= 9}
-                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-m4v"
                 onChange={(event) => {
                   handleFiles(event.target.files);
                   event.target.value = "";

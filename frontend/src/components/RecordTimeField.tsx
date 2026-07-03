@@ -14,6 +14,7 @@ interface RecordTimeFieldProps {
 function formatDate(value: string): string {
   if (value === getLocalDateString()) return "今天";
   if (value === getRelativeLocalDateString(-1)) return "昨天";
+  if (value === getRelativeLocalDateString(-2)) return "前天";
   const [year, month, day] = value.split("-");
   return `${year}年${Number(month)}月${Number(day)}日`;
 }
@@ -24,13 +25,34 @@ function formatTime(value: RecordDateTimeValue): string {
 
 export default function RecordTimeField({ value, onChange, invalid = false }: RecordTimeFieldProps) {
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
+  const quickDates = [
+    { label: "今天", value: getLocalDateString() },
+    { label: "昨天", value: getRelativeLocalDateString(-1) },
+    { label: "前天", value: getRelativeLocalDateString(-2) },
+  ];
 
   return (
     <>
       <SectionCard className="p-4">
         <div className="mb-3">
           <div className="panel-title text-[17px]">记录时间</div>
-          <div className="panel-note mt-1">默认当前时间，补记时可以修改</div>
+          <div className="panel-note mt-1">默认当前时间，补记时可以选前几天</div>
+        </div>
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {quickDates.map((date) => (
+            <button
+              key={date.value}
+              type="button"
+              onClick={() => onChange({ ...value, date: date.value })}
+              className={`flex-shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                value.date === date.value
+                  ? "border-[#5BC4A0] bg-[#5BC4A0] text-white"
+                  : "border-[#CBE8DA] bg-white text-[#1A5C3A]"
+              }`}
+            >
+              {date.label}
+            </button>
+          ))}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <button

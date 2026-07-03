@@ -48,6 +48,7 @@ type RecordMeta = {
 
 const TYPE_META: Record<string, RecordMeta> = {
   breast_milk: { icon: "breast_milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  breast_milk_bottle: { icon: "breast_milk_bottle", label: "瓶喂母乳", tone: "#D56B8D", surface: "#FFF2F7" },
   formula: { icon: "formula", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
   sleep: { icon: "sleep", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
   diaper: { icon: "diaper_wet", label: "尿布", tone: "#349FD5", surface: "#EAF8FF" },
@@ -211,7 +212,7 @@ function formatDetail(record: BabyRecord): string {
     return `双侧 ${(Number(data.leftMin) || 0) + (Number(data.rightMin) || 0)} 分钟`;
   }
 
-  if (record.type === "formula") return `${data.ml ?? 0} ml`;
+  if (record.type === "formula" || record.type === "breast_milk_bottle") return `${data.ml ?? 0} ml`;
   if (record.type === "sleep") return data.end ? `${formatTime(data.start)} - ${formatTime(data.end)}` : "睡眠中";
 
   if (record.type === "diaper") {
@@ -313,6 +314,7 @@ const QUICK_RECORD_META: Record<
   { icon: RecordIconName; tone: string; surface: string }
 > = {
   breast_milk: { icon: "breast_milk", tone: "#C95F7B", surface: "#FFF1F5" },
+  breast_milk_bottle: { icon: "breast_milk_bottle", tone: "#D56B8D", surface: "#FFF2F7" },
   formula: { icon: "formula", tone: "#4D92D8", surface: "#EDF7FF" },
   sleep: { icon: "sleep", tone: "#7C6AD8", surface: "#F2EFFF" },
   diaper_wet: { icon: "diaper_wet", tone: "#349FD5", surface: "#EAF8FF" },
@@ -372,7 +374,7 @@ export default function HomePage() {
         setTodayCount(records.filter((record) => getRecordLocalDate(record.recorded_at) === today).length);
       }),
       fetchExpenses(baby.id, `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`).then((expenses) => {
-        setMonthExpense(expenses.reduce((sum, expense) => sum + expense.amount, 0));
+        setMonthExpense(expenses.filter((expense) => expense.direction !== "income").reduce((sum, expense) => sum + expense.amount, 0));
         if (expenses.length > 0) setHasRecords(true);
       }),
       fetchVaccines(baby.id)

@@ -2,6 +2,7 @@ export type VoiceParseStatus = "parsed" | "partial" | "unsupported" | "unrecogni
 
 export type VoiceCandidateType =
   | "breast_milk"
+  | "breast_milk_bottle"
   | "formula"
   | "sleep"
   | "temperature"

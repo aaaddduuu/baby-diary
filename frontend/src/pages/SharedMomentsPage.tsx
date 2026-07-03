@@ -6,11 +6,6 @@ import type { MomentPhoto, SharedMoment, SharedMomentsData } from "../lib/api";
 
 const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 
-function formatMonth(value: string): string {
-  const [year, month] = value.split("-");
-  return `${year}年${Number(month)}月`;
-}
-
 function formatDate(value: string): { day: string; month: string; weekday: string } {
   const date = new Date(`${value}T00:00:00`);
   return {
@@ -18,6 +13,10 @@ function formatDate(value: string): { day: string; month: string; weekday: strin
     month: `${date.getMonth() + 1}月`,
     weekday: WEEKDAYS[date.getDay()],
   };
+}
+
+function isVideoPhoto(photo: MomentPhoto): boolean {
+  return photo.content_type.startsWith("video/");
 }
 
 function SharedPhoto({ photo, alt, className, onClick }: {
@@ -28,13 +27,26 @@ function SharedPhoto({ photo, alt, className, onClick }: {
 }) {
   return (
     <button type="button" onClick={onClick} className={`block overflow-hidden border-none bg-[#EEF2ED] p-0 ${className}`}>
-      <img
-        src={getApiAssetUrl(photo.path)}
-        alt={alt}
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        className="h-full w-full object-cover"
-      />
+      {isVideoPhoto(photo) ? (
+        <video
+          src={getApiAssetUrl(photo.path)}
+          aria-label={alt}
+          preload="auto"
+          playsInline
+          muted
+          autoPlay
+          loop
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <img
+          src={getApiAssetUrl(photo.path)}
+          alt={alt}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="h-full w-full object-cover"
+        />
+      )}
     </button>
   );
 }
@@ -52,6 +64,9 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
       {visible.map((photo, index) => (
         <div key={photo.id} className={`relative overflow-hidden ${visible.length === 3 && index === 0 ? "row-span-2" : ""}`}>
           <SharedPhoto photo={photo} alt={`宝宝当天的第 ${index + 1} 张照片`} className="h-full w-full" onClick={() => onOpen(index)} />
+          {isVideoPhoto(photo) ? (
+            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+          ) : null}
           {index === 3 && photos.length > 4 ? (
             <button type="button" onClick={() => onOpen(index)} className="absolute inset-0 flex items-center justify-center border-none bg-black/45 text-xl font-bold text-white">
               还有 {photos.length - 4} 张
@@ -78,7 +93,11 @@ function PhotoViewer({ photos, index, onChange, onClose }: {
         <button type="button" onClick={onClose} className="rounded-pill border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white">关闭</button>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-        <img src={getApiAssetUrl(photo.path)} alt={`宝宝照片 ${index + 1}`} referrerPolicy="no-referrer" className="max-h-full w-full rounded-[12px] object-contain" />
+        {isVideoPhoto(photo) ? (
+          <video src={getApiAssetUrl(photo.path)} controls playsInline autoPlay preload="auto" className="max-h-full w-full rounded-[12px] object-contain" />
+        ) : (
+          <img src={getApiAssetUrl(photo.path)} alt={`宝宝照片 ${index + 1}`} referrerPolicy="no-referrer" className="max-h-full w-full rounded-[12px] object-contain" />
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3 px-4 pb-7 pt-4">
         <button type="button" disabled={index === 0} onClick={() => onChange(index - 1)} className="rounded-[18px] border border-white/20 bg-white/10 py-3 text-sm font-semibold text-white disabled:opacity-30">上一张</button>
@@ -148,7 +167,7 @@ export default function SharedMomentsPage() {
         <div className="relative z-10">
           <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/72">家人专属 · 只读分享</div>
           <div className="header-title mt-2">{data.baby_name}的成长时光</div>
-          <div className="header-subtitle mt-1 text-sm">{formatMonth(data.share_month)} · {data.moments.length} 天 · {photoCount} 张照片</div>
+          <div className="header-subtitle mt-1 text-sm">全部成长时光 · {data.moments.length} 天 · {photoCount} 个媒体</div>
         </div>
       </div>
 
@@ -160,7 +179,7 @@ export default function SharedMomentsPage() {
         <div className="space-y-6 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
           {data.moments.length === 0 ? (
             <div className="rounded-[28px] border border-white bg-white/90 px-6 py-10 text-center shadow-soft">
-              <div className="text-lg font-black text-[#21382E]">这个月还没有成长时光</div>
+              <div className="text-lg font-black text-[#21382E]">还没有成长时光</div>
             </div>
           ) : data.moments.map((moment: SharedMoment) => {
             const date = formatDate(moment.entry_date);

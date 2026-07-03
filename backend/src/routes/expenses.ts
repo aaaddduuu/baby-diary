@@ -40,7 +40,8 @@ expenses.post("/", async (c) => {
   try {
     const userId = c.get("userId");
     const body = await c.req.json();
-    const { baby_id, category, amount, name, channel, date } = body;
+    const { baby_id, category, amount, name, channel, date, direction } = body;
+    const expenseDirection = direction === "income" ? "income" : "expense";
 
     if (!baby_id || !category || amount === undefined || !name || !date) {
       return c.json({ success: false, data: null, message: "缺少必填字段" }, 400);
@@ -55,8 +56,8 @@ expenses.post("/", async (c) => {
     }
 
     const result = await c.env.DB.prepare(
-      "INSERT INTO expenses (baby_id, category, amount, name, channel, date) VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(baby_id, category, amount, name, channel || null, date).run();
+      "INSERT INTO expenses (baby_id, direction, category, amount, name, channel, date) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).bind(baby_id, expenseDirection, category, amount, name, channel || null, date).run();
 
     const record = await c.env.DB.prepare("SELECT * FROM expenses WHERE id = ?").bind(result.meta.last_row_id).first();
     return c.json({ success: true, data: record }, 201);
@@ -110,10 +111,14 @@ expenses.put("/:id", async (c) => {
       return c.json({ success: false, data: null, message: "无权限" }, 403);
     }
 
-    const { category, amount, name, channel, date } = body;
+    const { category, amount, name, channel, date, direction } = body;
+    const nextDirection = direction === "income" || direction === "expense"
+      ? direction
+      : ((existing.direction as string | undefined) || "expense");
     await c.env.DB.prepare(
-      "UPDATE expenses SET category = ?, amount = ?, name = ?, channel = ?, date = ? WHERE id = ?"
+      "UPDATE expenses SET direction = ?, category = ?, amount = ?, name = ?, channel = ?, date = ? WHERE id = ?"
     ).bind(
+      nextDirection,
       category || existing.category,
       amount !== undefined ? amount : existing.amount,
       name || existing.name,

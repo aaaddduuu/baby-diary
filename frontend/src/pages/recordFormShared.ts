@@ -6,6 +6,7 @@
 
 export const ADD_RECORD_TYPES = [
   { type: "breast_milk", iconName: "breast_milk", label: "母乳", tone: "#C95F7B", surface: "#FFF1F5" },
+  { type: "breast_milk_bottle", iconName: "breast_milk_bottle", label: "瓶喂母乳", tone: "#D56B8D", surface: "#FFF2F7" },
   { type: "formula", iconName: "formula", label: "配方奶", tone: "#4D92D8", surface: "#EDF7FF" },
   { type: "sleep", iconName: "sleep", label: "睡眠", tone: "#7C6AD8", surface: "#F2EFFF" },
   { type: "diaper_wet", iconName: "diaper_wet", label: "小便", tone: "#349FD5", surface: "#EAF8FF" },

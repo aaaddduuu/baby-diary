@@ -78,10 +78,12 @@ body {
 }
 
 .hero-shell-glow {
+  pointer-events: none;
   background: radial-gradient(ellipse at 78% 4%, rgba(255,255,255,.18) 0%, transparent 52%);
 }
 
 .header-readable-overlay {
+  pointer-events: none;
   background: var(--header-scrim);
 }
 
@@ -153,7 +155,7 @@ body {
 }
 
 .picker-sheet-wheel {
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .sleep-picker-wheel {

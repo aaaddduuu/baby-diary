@@ -18,11 +18,6 @@ function defaultExpirationDate(): string {
   return localDateString(date);
 }
 
-function formatMonth(value: string): string {
-  const [year, month] = value.split("-");
-  return `${year}年${Number(month)}月`;
-}
-
 export default function MomentShareSheet({
   visible,
   babyId,
@@ -60,8 +55,8 @@ export default function MomentShareSheet({
   }, [babyId, visible]);
 
   const activeShares = useMemo(
-    () => shares.filter((share) => share.share_month === selectedMonth && share.status === "active"),
-    [selectedMonth, shares],
+    () => shares.filter((share) => share.status === "active"),
+    [shares],
   );
 
   const handleCreate = async () => {
@@ -103,7 +98,7 @@ export default function MomentShareSheet({
     try {
       await navigator.share({
         title: `${babyName}的成长时光`,
-        text: `邀请你看看${babyName}在${formatMonth(selectedMonth)}的成长时光，有效期至${formatDateFieldValue(expiresOn)}。`,
+        text: `邀请你看看${babyName}的全部成长时光，有效期至${formatDateFieldValue(expiresOn)}。`,
         url: shareUrl,
       });
     } catch {
@@ -134,7 +129,7 @@ export default function MomentShareSheet({
           <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#EFE8DD] bg-[rgba(248,247,239,.96)] px-5 py-4 backdrop-blur-md">
             <div>
               <div className="font-serif text-lg font-semibold text-[#21382E]">分享成长时光</div>
-              <div className="mt-1 text-sm leading-5 text-[#7A8B80]">家人无需注册，只能浏览这个月份的照片和备注。</div>
+              <div className="mt-1 text-sm leading-5 text-[#7A8B80]">家人无需注册，只能浏览全部成长时光的照片和备注。</div>
             </div>
             <button type="button" onClick={onClose} className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-bold text-[#5F7368] shadow-soft">
               关闭
@@ -149,7 +144,7 @@ export default function MomentShareSheet({
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-[18px] bg-[#F0FAF6] p-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6C8879]">分享范围</div>
-                  <div className="mt-1 text-sm font-black text-[#1A5C3A]">{formatMonth(selectedMonth)}</div>
+                  <div className="mt-1 text-sm font-black text-[#1A5C3A]">全部成长时光</div>
                 </div>
                 <div className="rounded-[18px] bg-[#FFF3EA] p-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#98715E]">浏览权限</div>

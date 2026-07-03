@@ -40,6 +40,22 @@ async function checkBabyAccess(db: D1Database, userId: number, babyId: number): 
   return Boolean(membership);
 }
 
+function normalizeWeightKg(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  const normalized = Math.abs(numeric) >= 100 ? numeric / 1000 : numeric;
+  return Math.round(normalized * 1000) / 1000;
+}
+
+function normalizeGrowthRecord<T extends Record<string, unknown>>(record: T | null): T | null {
+  if (!record) return null;
+  return {
+    ...record,
+    weight: normalizeWeightKg(record.weight),
+  };
+}
+
 babies.get("/", async (c) => {
   try {
     const userId = c.get("userId");
@@ -165,7 +181,7 @@ babies.get("/:id/growth", async (c) => {
       "SELECT * FROM growth_records WHERE baby_id = ? ORDER BY measured_at DESC"
     ).bind(babyId).all();
 
-    return c.json({ success: true, data: results });
+    return c.json({ success: true, data: results.map((record) => normalizeGrowthRecord(record)) });
   } catch (e) {
     return c.json({ success: false, data: null, message: String(e) }, 500);
   }
@@ -187,12 +203,14 @@ babies.post("/:id/growth", async (c) => {
       return c.json({ success: false, data: null, message: "缺少必填字段：measured_at" }, 400);
     }
 
+    const normalizedWeight = normalizeWeightKg(weight);
+
     const result = await c.env.DB.prepare(
       "INSERT INTO growth_records (baby_id, weight, height, head_circumference, photo_url, measured_at) VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(babyId, weight || null, height || null, head_circumference || null, photo_url || null, measured_at).run();
+    ).bind(babyId, normalizedWeight, height || null, head_circumference || null, photo_url || null, measured_at).run();
 
     const record = await c.env.DB.prepare("SELECT * FROM growth_records WHERE id = ?").bind(result.meta.last_row_id).first();
-    return c.json({ success: true, data: record }, 201);
+    return c.json({ success: true, data: normalizeGrowthRecord(record) }, 201);
   } catch (e) {
     return c.json({ success: false, data: null, message: String(e) }, 500);
   }
@@ -218,11 +236,12 @@ babies.put("/:id/growth/:growthId", async (c) => {
     }
 
     const { weight, height, head_circumference, measured_at } = body;
+    const normalizedWeight = weight !== undefined ? normalizeWeightKg(weight) : normalizeWeightKg(existing.weight);
 
     await c.env.DB.prepare(
       "UPDATE growth_records SET weight = ?, height = ?, head_circumference = ?, measured_at = ? WHERE id = ?"
     ).bind(
-      weight !== undefined ? weight : existing.weight,
+      normalizedWeight,
       height !== undefined ? height : existing.height,
       head_circumference !== undefined ? head_circumference : existing.head_circumference,
       measured_at || existing.measured_at,
@@ -230,7 +249,7 @@ babies.put("/:id/growth/:growthId", async (c) => {
     ).run();
 
     const record = await c.env.DB.prepare("SELECT * FROM growth_records WHERE id = ?").bind(growthId).first();
-    return c.json({ success: true, data: record });
+    return c.json({ success: true, data: normalizeGrowthRecord(record) });
   } catch (e) {
     return c.json({ success: false, data: null, message: String(e) }, 500);
   }

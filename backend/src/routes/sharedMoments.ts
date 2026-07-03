@@ -96,9 +96,9 @@ sharedMoments.get("/:token", async (c) => {
     const { results: momentRows } = await c.env.DB.prepare(
       `SELECT id, entry_date, note
        FROM daily_moments
-       WHERE baby_id = ? AND substr(entry_date, 1, 7) = ?
+       WHERE baby_id = ?
        ORDER BY entry_date DESC, id DESC`,
-    ).bind(share.baby_id, share.share_month).all<PublicMomentRow>();
+    ).bind(share.baby_id).all<PublicMomentRow>();
 
     const photosByMoment = new Map<number, PhotoRow[]>();
     if (momentRows.length > 0) {
@@ -161,8 +161,8 @@ sharedMoments.get("/:token/photos/:photoId", async (c) => {
       `SELECT p.*
        FROM daily_moment_photos p
        JOIN daily_moments m ON m.id = p.moment_id
-       WHERE p.id = ? AND m.baby_id = ? AND substr(m.entry_date, 1, 7) = ?`,
-    ).bind(photoId, share.baby_id, share.share_month).first<PhotoRow>();
+       WHERE p.id = ? AND m.baby_id = ?`,
+    ).bind(photoId, share.baby_id).first<PhotoRow>();
     if (!photo) {
       return c.json({ success: false, data: null, message: "照片不存在" }, 404);
     }

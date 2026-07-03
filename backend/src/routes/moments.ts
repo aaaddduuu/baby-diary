@@ -37,6 +37,7 @@ type PhotoRow = {
 const moments = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 const MAX_PHOTOS_PER_MOMENT = 9;
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 80 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -44,6 +45,12 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/gif",
   "image/heic",
   "image/heif",
+]);
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/x-m4v",
 ]);
 
 moments.use("*", async (c, next) => {
@@ -339,24 +346,27 @@ moments.post("/:id/photos", async (c) => {
 
     const contentType = (c.req.header("Content-Type") || "").split(";")[0].toLowerCase();
     const contentLength = Number(c.req.header("Content-Length") || 0);
-    if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
-      return c.json({ success: false, data: null, message: "仅支持常见图片格式" }, 415);
+    const isImage = ALLOWED_IMAGE_TYPES.has(contentType);
+    const isVideo = ALLOWED_VIDEO_TYPES.has(contentType);
+    if (!isImage && !isVideo) {
+      return c.json({ success: false, data: null, message: "仅支持常见图片或视频格式" }, 415);
     }
     if (!c.req.raw.body) {
-      return c.json({ success: false, data: null, message: "请选择照片" }, 400);
+      return c.json({ success: false, data: null, message: "请选择图片或视频" }, 400);
     }
     if (!Number.isFinite(contentLength) || contentLength <= 0) {
-      return c.json({ success: false, data: null, message: "无法确认照片大小，请重新选择" }, 411);
+      return c.json({ success: false, data: null, message: "无法确认文件大小，请重新选择" }, 411);
     }
-    if (contentLength > MAX_PHOTO_BYTES) {
-      return c.json({ success: false, data: null, message: "单张照片不能超过 10MB" }, 413);
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_PHOTO_BYTES;
+    if (contentLength > maxBytes) {
+      return c.json({ success: false, data: null, message: isVideo ? "单个视频不能超过 80MB" : "单张照片不能超过 10MB" }, 413);
     }
 
     const count = await c.env.DB.prepare(
       "SELECT COUNT(*) AS total FROM daily_moment_photos WHERE moment_id = ?",
     ).bind(momentId).first<{ total: number }>();
     if (Number(count?.total || 0) >= MAX_PHOTOS_PER_MOMENT) {
-      return c.json({ success: false, data: null, message: "每天最多上传 9 张照片" }, 409);
+      return c.json({ success: false, data: null, message: "每天最多上传 9 个图片或视频" }, 409);
     }
 
     const key = `babies/${moment.baby_id}/moments/${momentId}/${crypto.randomUUID()}`;
@@ -365,7 +375,7 @@ moments.post("/:id/photos", async (c) => {
       customMetadata: { momentId: String(momentId), babyId: String(moment.baby_id) },
     });
     if (!stored) {
-      return c.json({ success: false, data: null, message: "照片上传失败" }, 500);
+      return c.json({ success: false, data: null, message: "媒体上传失败" }, 500);
     }
 
     const sortOrder = Number(count?.total || 0);
@@ -391,7 +401,7 @@ moments.post("/:id/photos", async (c) => {
     }
   } catch (error) {
     console.error(JSON.stringify({ message: "upload moment photo failed", error: error instanceof Error ? error.message : String(error) }));
-    return c.json({ success: false, data: null, message: "照片上传失败" }, 500);
+    return c.json({ success: false, data: null, message: "媒体上传失败" }, 500);
   }
 });
 

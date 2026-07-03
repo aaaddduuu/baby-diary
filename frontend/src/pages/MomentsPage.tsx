@@ -32,6 +32,10 @@ function calcBabyDay(birthDate: string, entryDate: string): number {
   return Math.max(1, Math.floor((entry.getTime() - birth.getTime()) / 86_400_000) + 1);
 }
 
+function isVideoPhoto(photo: MomentPhoto): boolean {
+  return photo.content_type.startsWith("video/");
+}
+
 function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index: number) => void }) {
   const visible = photos.slice(0, 4);
   if (visible.length === 0) return null;
@@ -41,6 +45,7 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
       <PrivatePhoto
         path={visible[0].path}
         alt="宝宝当天的照片"
+        contentType={visible[0].content_type}
         onClick={() => onOpen(0)}
         className="aspect-[4/3] w-full rounded-[20px]"
       />
@@ -54,9 +59,13 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
           <PrivatePhoto
             path={photo.path}
             alt={`宝宝当天的第 ${index + 1} 张照片`}
+            contentType={photo.content_type}
             onClick={() => onOpen(index)}
             className="h-full w-full"
           />
+          {isVideoPhoto(photo) ? (
+            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+          ) : null}
           {index === 3 && photos.length > 4 ? (
             <button
               type="button"
@@ -90,7 +99,11 @@ function PhotoViewer({ photos, index, onChange, onClose }: {
         </button>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-        <PrivatePhoto path={photo.path} alt={`宝宝照片 ${index + 1}`} className="max-h-full w-full rounded-[12px] object-contain" />
+        {isVideoPhoto(photo) ? (
+          <PrivatePhoto path={photo.path} alt={`宝宝视频 ${index + 1}`} contentType={photo.content_type} videoControls className="max-h-full w-full rounded-[12px] object-contain" />
+        ) : (
+          <PrivatePhoto path={photo.path} alt={`宝宝照片 ${index + 1}`} contentType={photo.content_type} className="max-h-full w-full rounded-[12px] object-contain" />
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3 px-4 pb-7 pt-4">
         <button
@@ -184,7 +197,7 @@ export default function MomentsPage() {
         </div>
         <div className="rounded-[18px] bg-[#FFF3EA] px-4 py-3">
           <div className="font-tabular text-2xl font-black text-[#A85837]">{photoCount}</div>
-          <div className="mt-1 text-[11px] font-semibold text-[#856554]">本月珍藏照片</div>
+          <div className="mt-1 text-[11px] font-semibold text-[#856554]">本月珍藏媒体</div>
         </div>
       </div>
 
@@ -210,8 +223,8 @@ export default function MomentsPage() {
             <div className="py-20 text-center text-sm font-semibold text-gray-400">正在翻开时光册…</div>
           ) : moments.length === 0 ? (
             <div className="rounded-[28px] border border-white bg-white/90 px-6 py-10 text-center shadow-soft">
-              <div className="text-xl font-black text-[#21382E]">这个月还没有留下照片</div>
-              <div className="mx-auto mt-2 max-w-[250px] text-sm leading-6 text-[#6B7C72]">选几张今天喜欢的照片，写下一句当时最想记住的话。</div>
+              <div className="text-xl font-black text-[#21382E]">这个月还没有留下媒体</div>
+              <div className="mx-auto mt-2 max-w-[250px] text-sm leading-6 text-[#6B7C72]">选几张今天喜欢的图片或视频，写下一句当时最想记住的话。</div>
               <button
                 type="button"
                 onClick={() => navigate("/moments/new")}

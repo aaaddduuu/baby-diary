@@ -8,6 +8,7 @@ import { CARE_PREFERENCE_ITEMS, useCarePreferences } from "../lib/carePreference
 import type { CarePreferenceKey } from "../lib/carePreferences";
 import { fetchRecords, fetchExpenses, fetchFamily, fetchGrowthRecords, fetchVaccines } from "../lib/api";
 import type { FamilyMember, GrowthRecord } from "../lib/api";
+import { formatMeasurementNumber, formatWeightKg } from "../lib/growth";
 
 function maskPhone(phone: string): string {
   if (!phone || phone.length < 7) return phone;
@@ -96,10 +97,10 @@ export default function MyPage() {
     Promise.all([
       fetchRecords(baby.id).then(records => setTotalRecords(records.length)),
       fetchExpenses(baby.id).then(expenses => {
-        setTotalExpense(expenses.reduce((sum, e) => sum + e.amount, 0));
+        setTotalExpense(expenses.filter((expense) => expense.direction !== "income").reduce((sum, e) => sum + e.amount, 0));
       }),
       fetchExpenses(baby.id, currentMonth).then(expenses => {
-        setMonthExpense(expenses.reduce((sum, e) => sum + e.amount, 0));
+        setMonthExpense(expenses.filter((expense) => expense.direction !== "income").reduce((sum, e) => sum + e.amount, 0));
       }),
       fetchGrowthRecords(baby.id).then(setGrowthRecords),
       fetchVaccines(baby.id).then(vaccines => {
@@ -182,13 +183,13 @@ export default function MyPage() {
             <div className="p-3.5">
               <div className="flex items-center justify-center gap-4">
                 {latestGrowth.weight && (
-                  <div className="text-sm text-gray-900">⚖️ {latestGrowth.weight}kg</div>
+                  <div className="text-sm text-gray-900">⚖️ {formatWeightKg(latestGrowth.weight)}</div>
                 )}
                 {latestGrowth.height && (
-                  <div className="text-sm text-gray-900">📏 {latestGrowth.height}cm</div>
+                  <div className="text-sm text-gray-900">📏 {formatMeasurementNumber(latestGrowth.height)}cm</div>
                 )}
                 {latestGrowth.head_circumference && (
-                  <div className="text-sm text-gray-900">⭕ {latestGrowth.head_circumference}cm</div>
+                  <div className="text-sm text-gray-900">⭕ {formatMeasurementNumber(latestGrowth.head_circumference)}cm</div>
                 )}
               </div>
               <div className="text-xs text-gray-400 text-center mt-1.5">{latestGrowth.measured_at} 测量</div>

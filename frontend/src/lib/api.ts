@@ -1,4 +1,6 @@
-﻿export interface ApiResponse<T = unknown> {
+﻿import { normalizeWeightKg } from "./growth";
+
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data: T;
   message?: string;
@@ -21,6 +23,7 @@ export interface Expense {
   id: number;
   baby_id: number;
   member_id: number | null;
+  direction: "expense" | "income";
   category: string;
   amount: number;
   name: string;
@@ -147,6 +150,13 @@ export interface GrowthRecord {
   measured_at: string;
 }
 
+function normalizeGrowthRecord(record: GrowthRecord): GrowthRecord {
+  return {
+    ...record,
+    weight: normalizeWeightKg(record.weight),
+  };
+}
+
 export interface VaccineRecord {
   id: number;
   name: string;
@@ -160,6 +170,7 @@ export type VoiceParseStatus = "parsed" | "partial" | "unsupported" | "unrecogni
 
 export type VoiceCandidateType =
   | "breast_milk"
+  | "breast_milk_bottle"
   | "formula"
   | "sleep"
   | "temperature"
@@ -312,6 +323,7 @@ export async function fetchExpenses(babyId: number, month?: string): Promise<Exp
 export async function createExpense(data: {
   baby_id: number;
   member_id?: number;
+  direction?: "expense" | "income";
   category: string;
   amount: number;
   name: string;
@@ -456,9 +468,9 @@ export async function uploadMomentPhoto(momentId: number, photo: Blob): Promise<
   try {
     json = JSON.parse(text) as ApiResponse<MomentPhoto>;
   } catch {
-    throw new Error("照片上传响应异常");
+    throw new Error("媒体上传响应异常");
   }
-  if (!json.success) throw new Error(json.message || "照片上传失败");
+  if (!json.success) throw new Error(json.message || "媒体上传失败");
   return json.data;
 }
 
@@ -476,12 +488,13 @@ export async function fetchPrivatePhoto(path: string): Promise<Blob> {
     window.location.href = "/auth";
     throw new Error("登录已过期");
   }
-  if (!res.ok) throw new Error("照片加载失败");
+  if (!res.ok) throw new Error("媒体加载失败");
   return res.blob();
 }
 
 export async function fetchGrowthRecords(babyId: number): Promise<GrowthRecord[]> {
-  return requestData<GrowthRecord[]>(`/babies/${babyId}/growth`);
+  const records = await requestData<GrowthRecord[]>(`/babies/${babyId}/growth`);
+  return records.map(normalizeGrowthRecord);
 }
 
 export async function createGrowthRecord(
@@ -493,10 +506,11 @@ export async function createGrowthRecord(
     measured_at: string;
   },
 ): Promise<GrowthRecord> {
-  return requestData<GrowthRecord>(`/babies/${babyId}/growth`, {
+  const record = await requestData<GrowthRecord>(`/babies/${babyId}/growth`, {
     method: "POST",
     body: JSON.stringify(data),
   });
+  return normalizeGrowthRecord(record);
 }
 
 export async function updateGrowthRecord(
@@ -509,10 +523,11 @@ export async function updateGrowthRecord(
     measured_at: string;
   },
 ): Promise<GrowthRecord> {
-  return requestData<GrowthRecord>(`/babies/${babyId}/growth/${recordId}`, {
+  const record = await requestData<GrowthRecord>(`/babies/${babyId}/growth/${recordId}`, {
     method: "PUT",
     body: JSON.stringify(data),
   });
+  return normalizeGrowthRecord(record);
 }
 
 export async function deleteGrowthRecord(babyId: number, recordId: number): Promise<{ id?: number }> {
