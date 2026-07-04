@@ -243,10 +243,14 @@ export default function MomentEditorPage() {
       setError("每天最多上传 9 个图片、实况或视频");
       return;
     }
-    const accepted = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
-    const selected = accepted.slice(0, slots);
+    const picked = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
+    const videos = picked.filter(isVideoFile);
+    const selected = videos.slice(0, slots);
     if (selected.length === 0) {
-      setError("请选择照片图库里的图片或实况短片");
+      const hasStaticPhotos = picked.some((file) => file.type.startsWith("image/"));
+      setError(hasStaticPhotos
+        ? "浏览器只拿到了静态照片，拿不到实况动态片段。请在 iOS 相册中打开这张实况照片，先选择“存储为视频”，再回到这里添加实况照片。"
+        : "请选择从实况照片存储出来的视频");
       return;
     }
     try {
@@ -254,14 +258,14 @@ export default function MomentEditorPage() {
         id: crypto.randomUUID(),
         file,
         preview: URL.createObjectURL(file),
-        kind: isVideoFile(file) ? "live_photo" as const : "image" as const,
-        cover: isVideoFile(file) ? await createVideoPoster(file) : undefined,
+        kind: "live_photo" as const,
+        cover: await createVideoPoster(file),
       })));
       setPendingPhotos((current) => [...current, ...livePhotos]);
-      const staticCount = selected.filter((file) => file.type.startsWith("image/")).length;
-      if (staticCount > 0) {
-        setError(`有 ${staticCount} 张照片没有动态片段，已按普通图片添加；需要动态效果时可在相册中“存储为视频”后再选。`);
-      } else if (selected.length < files.length) {
+      const ignoredStaticCount = picked.length - videos.length;
+      if (ignoredStaticCount > 0) {
+        setError(`已添加 ${selected.length} 个实况视频；另有 ${ignoredStaticCount} 张静态照片没有动态片段，未上传。`);
+      } else if (selected.length < videos.length) {
         setError(`已保留前 ${selected.length} 个实况照片，每天最多 9 个`);
       }
     } catch (err) {
@@ -476,7 +480,7 @@ export default function MomentEditorPage() {
             </label>
             <label className={`mt-2 flex min-h-[78px] cursor-pointer flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-4 text-center ${totalPhotos >= 9 ? "border-[#D8DED9] bg-[#F5F6F4] opacity-55" : "border-[#D7C89A] bg-[#FFF9E8]"}`}>
               <span className="text-sm font-black text-[#8A6D18]">添加实况照片</span>
-              <span className="mt-1 text-xs leading-5 text-[#7A6840]">可直接进照片图库选择；若只返回静态图，会按普通图片保存</span>
+              <span className="mt-1 text-xs leading-5 text-[#7A6840]">网页无法直接读取实况原片，请先在相册“存储为视频”后选择</span>
               <input
                 type="file"
                 multiple
