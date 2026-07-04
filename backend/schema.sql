@@ -70,6 +70,10 @@ CREATE TABLE IF NOT EXISTS daily_moment_photos (
   moment_id INTEGER NOT NULL REFERENCES daily_moments(id) ON DELETE CASCADE,
   r2_key TEXT NOT NULL UNIQUE,
   content_type TEXT NOT NULL,
+  media_kind TEXT NOT NULL DEFAULT 'image' CHECK(media_kind IN ('image', 'video', 'live_photo')),
+  motion_r2_key TEXT,
+  motion_content_type TEXT,
+  motion_size_bytes INTEGER,
   size_bytes INTEGER NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

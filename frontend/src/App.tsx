@@ -9,6 +9,7 @@ import AddRecordPage from "./pages/AddRecordPage";
 import EditRecordPage from "./pages/EditRecordPage";
 import ExpensePage from "./pages/ExpensePage";
 import AddExpensePage from "./pages/AddExpensePage";
+import CareStatsPage from "./pages/CareStatsPage";
 import GrowthPage from "./pages/GrowthPage";
 import VaccinePage from "./pages/VaccinePage";
 import FamilyPage from "./pages/FamilyPage";
@@ -84,6 +85,7 @@ function AppRoutes() {
       <Route path="/record/edit/:id" element={<BabyRequiredRoute><EditRecordPage /></BabyRequiredRoute>} />
       <Route path="/expense" element={<BabyRequiredRoute><ExpensePage /></BabyRequiredRoute>} />
       <Route path="/expense/add" element={<BabyRequiredRoute><AddExpensePage /></BabyRequiredRoute>} />
+      <Route path="/care-stats" element={<BabyRequiredRoute><CareStatsPage /></BabyRequiredRoute>} />
       <Route path="/growth" element={<BabyRequiredRoute><GrowthPage /></BabyRequiredRoute>} />
       <Route path="/vaccine" element={<BabyRequiredRoute><VaccinePage /></BabyRequiredRoute>} />
       <Route path="/family" element={<BabyRequiredRoute><FamilyPage /></BabyRequiredRoute>} />

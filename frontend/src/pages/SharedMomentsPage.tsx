@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Layout, { ScrollArea } from "../components/Layout";
+import LivePhotoPlayer from "../components/LivePhotoPlayer";
 import { fetchSharedMoments, getApiAssetUrl } from "../lib/api";
 import type { MomentPhoto, SharedMoment, SharedMomentsData } from "../lib/api";
 
@@ -16,7 +17,17 @@ function formatDate(value: string): { day: string; month: string; weekday: strin
 }
 
 function isVideoPhoto(photo: MomentPhoto): boolean {
-  return photo.content_type.startsWith("video/");
+  return photo.media_kind === "video" || (!photo.media_kind && photo.content_type.startsWith("video/"));
+}
+
+function isLivePhoto(photo: MomentPhoto): boolean {
+  return photo.media_kind === "live_photo";
+}
+
+function mediaBadge(photo: MomentPhoto): string {
+  if (isLivePhoto(photo)) return "实况";
+  if (isVideoPhoto(photo)) return "视频";
+  return "";
 }
 
 function SharedPhoto({ photo, alt, className, onClick }: {
@@ -27,7 +38,14 @@ function SharedPhoto({ photo, alt, className, onClick }: {
 }) {
   return (
     <button type="button" onClick={onClick} className={`block overflow-hidden border-none bg-[#EEF2ED] p-0 ${className}`}>
-      {isVideoPhoto(photo) ? (
+      {isLivePhoto(photo) && photo.motion_path ? (
+        <LivePhotoPlayer
+          photoSrc={getApiAssetUrl(photo.path)}
+          videoSrc={getApiAssetUrl(photo.motion_path)}
+          alt={alt}
+          className="h-full w-full object-cover"
+        />
+      ) : isVideoPhoto(photo) ? (
         <video
           src={getApiAssetUrl(photo.path)}
           aria-label={alt}
@@ -64,8 +82,8 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
       {visible.map((photo, index) => (
         <div key={photo.id} className={`relative overflow-hidden ${visible.length === 3 && index === 0 ? "row-span-2" : ""}`}>
           <SharedPhoto photo={photo} alt={`宝宝当天的第 ${index + 1} 张照片`} className="h-full w-full" onClick={() => onOpen(index)} />
-          {isVideoPhoto(photo) ? (
-            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+          {mediaBadge(photo) ? (
+            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">{mediaBadge(photo)}</div>
           ) : null}
           {index === 3 && photos.length > 4 ? (
             <button type="button" onClick={() => onOpen(index)} className="absolute inset-0 flex items-center justify-center border-none bg-black/45 text-xl font-bold text-white">
@@ -93,7 +111,9 @@ function PhotoViewer({ photos, index, onChange, onClose }: {
         <button type="button" onClick={onClose} className="rounded-pill border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white">关闭</button>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-        {isVideoPhoto(photo) ? (
+        {isLivePhoto(photo) && photo.motion_path ? (
+          <LivePhotoPlayer photoSrc={getApiAssetUrl(photo.path)} videoSrc={getApiAssetUrl(photo.motion_path)} alt={`宝宝实况 ${index + 1}`} controls className="max-h-full w-full rounded-[12px] object-contain" />
+        ) : isVideoPhoto(photo) ? (
           <video src={getApiAssetUrl(photo.path)} controls playsInline autoPlay preload="auto" className="max-h-full w-full rounded-[12px] object-contain" />
         ) : (
           <img src={getApiAssetUrl(photo.path)} alt={`宝宝照片 ${index + 1}`} referrerPolicy="no-referrer" className="max-h-full w-full rounded-[12px] object-contain" />

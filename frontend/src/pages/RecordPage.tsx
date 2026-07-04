@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
+import Layout, { Fab, Hero, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import DatePickerSheet from "../components/DatePickerSheet";
 import RecordTypeIcon, { getDiaperIconName, getDiaperLabel } from "../components/RecordTypeIcon";
@@ -34,6 +34,26 @@ const TYPE_META: Record<string, { iconName: RecordIconName; label: string; tone:
 };
 
 const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+type StatMetric =
+  | "breast"
+  | "formula"
+  | "sleep"
+  | "urine"
+  | "stool"
+  | "temperature"
+  | "jaundice"
+  | "care"
+  | "medicine";
+
+type StatCardConfig = {
+  key: StatMetric;
+  value: string;
+  label: string;
+  suffix?: string;
+  tone: string;
+  chart: "bar" | "line";
+  unit: string;
+};
 
 function formatTime(isoStr: string): string {
   const d = new Date(isoStr);
@@ -208,7 +228,214 @@ function isFuture(dateStr: string): boolean {
 function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return getLocalDateString(date);
+}
+
+function recordsForDate(records: BabyRecord[], dateStr: string): BabyRecord[] {
+  return records.filter((record) => getLocalDateString(new Date(record.recorded_at)) === dateStr);
+}
+
+function latestNumericValue(records: BabyRecord[], type: string): number | null {
+  const record = records.find((item) => item.type === type);
+  if (!record) return null;
+  const value = Number(safeJsonParse(record.data).value);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getMetricValue(records: BabyRecord[], metric: StatMetric): number | null {
+  const stats = calcStats(records);
+  if (metric === "breast") return stats.breastCount;
+  if (metric === "formula") return stats.formulaMl;
+  if (metric === "sleep") return stats.sleepMinutes;
+  if (metric === "urine") return stats.urineCount;
+  if (metric === "stool") return stats.stoolCount;
+  if (metric === "medicine") return stats.medicineCount;
+  if (metric === "care") return stats.careCount;
+  if (metric === "temperature") return latestNumericValue(records, "temperature");
+  if (metric === "jaundice") return latestNumericValue(records, "jaundice");
+  return 0;
+}
+
+function formatMetricValue(value: number | null, metric: StatMetric, unit: string): string {
+  if (value === null) return "--";
+  if (metric === "sleep") return formatMinutes(value);
+  if (metric === "temperature") return `${value.toFixed(1)}${unit}`;
+  return `${value}${unit}`;
+}
+
+function formatChartValue(value: number, metric: StatMetric, unit: string, compact = false): string {
+  if (metric === "sleep") {
+    if (!compact) return formatMinutes(Math.round(value));
+    if (value >= 60) {
+      const hours = value / 60;
+      return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`;
+    }
+    return `${Math.round(value)}m`;
+  }
+  if (metric === "temperature") return `${value.toFixed(1)}${unit}`;
+  if (metric === "jaundice") return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
+  return `${Math.round(value)}${unit}`;
+}
+
+function niceMax(value: number): number {
+  if (value <= 0) return 1;
+  if (value <= 5) return Math.ceil(value);
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  return Math.ceil(value / magnitude) * magnitude;
+}
+
+function getTrend(records: BabyRecord[], selectedDate: string, metric: StatMetric) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(selectedDate, index - 6);
+    const dayRecords = recordsForDate(records, date);
+    const parsed = new Date(`${date}T00:00:00`);
+    return {
+      date,
+      label: `${parsed.getMonth() + 1}/${parsed.getDate()}`,
+      value: getMetricValue(dayRecords, metric),
+    };
+  });
+}
+
+function TrendChart({
+  data,
+  type,
+  tone,
+  metric,
+  unit,
+}: {
+  data: Array<{ label: string; value: number | null }>;
+  type: "bar" | "line";
+  tone: string;
+  metric: StatMetric;
+  unit: string;
+}) {
+  const width = 320;
+  const height = 170;
+  const padding = { top: 26, right: 16, bottom: 30, left: 48 };
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+  const values = data.map((point) => point.value).filter((value): value is number => value !== null);
+  const rawMax = Math.max(...values, 1);
+  const rawMin = type === "line" && values.length ? Math.min(...values) : 0;
+  const domainMax = type === "bar" ? niceMax(rawMax) : rawMax + Math.max((rawMax - rawMin) * 0.15, metric === "temperature" ? 0.2 : 0.5);
+  const domainMin = type === "bar" ? 0 : Math.max(0, rawMin - Math.max((rawMax - rawMin) * 0.15, metric === "temperature" ? 0.2 : 0.5));
+  const range = Math.max(domainMax - domainMin, 1);
+  const ticks = [domainMax, domainMin + range / 2, domainMin];
+  const xFor = (index: number) => padding.left + (innerWidth / Math.max(data.length - 1, 1)) * index;
+  const yFor = (value: number) => padding.top + innerHeight - ((value - domainMin) / range) * innerHeight;
+  const linePoints = data
+    .map((point, index) => point.value === null ? null : { x: xFor(index), y: yFor(point.value) })
+    .filter((point): point is { x: number; y: number } => point !== null);
+  const linePath = linePoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-[170px] w-full" role="img" aria-label="近7天趋势图">
+      {ticks.map((tick) => {
+        const y = yFor(tick);
+        return (
+          <g key={tick}>
+            <text x={padding.left - 8} y={y + 3} textAnchor="end" className="fill-gray-400 text-[10px] font-bold">
+              {formatChartValue(tick, metric, unit, true)}
+            </text>
+            <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#E8E1D5" strokeWidth={0.7} />
+          </g>
+        );
+      })}
+
+      {type === "bar" ? data.map((point, index) => {
+        const value = point.value ?? 0;
+        const barHeight = Math.max(value > 0 ? 8 : 3, ((value - domainMin) / range) * innerHeight);
+        const x = xFor(index) - 8;
+        const y = padding.top + innerHeight - barHeight;
+        return (
+          <g key={point.label}>
+            <text x={xFor(index)} y={Math.max(12, y - 6)} textAnchor="middle" className="fill-gray-600 text-[10px] font-bold">
+              {formatChartValue(value, metric, unit, true)}
+            </text>
+            <rect x={x} y={y} width={16} height={barHeight} rx={8} fill={tone} opacity={value > 0 ? 1 : 0.18} />
+          </g>
+        );
+      }) : (
+        <>
+          <path d={linePath} fill="none" stroke={tone} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+          {data.map((point, index) => point.value === null ? null : (
+            <g key={`${point.label}-${point.value}`}>
+              <text x={xFor(index)} y={Math.max(12, yFor(point.value) - 8)} textAnchor="middle" className="fill-gray-600 text-[10px] font-bold">
+                {formatChartValue(point.value, metric, unit, true)}
+              </text>
+              <circle cx={xFor(index)} cy={yFor(point.value)} r={4} fill={tone} stroke="#fff" strokeWidth={2} />
+            </g>
+          ))}
+        </>
+      )}
+
+      {data.map((point, index) => (
+        <text key={point.label} x={xFor(index)} y={height - 8} textAnchor="middle" className="fill-gray-400 text-[10px] font-bold">
+          {point.label}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+function RecordStatCard({
+  card,
+  active,
+  onClick,
+}: {
+  card: StatCardConfig;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`col-span-2 flex-1 rounded-2xl border p-3 text-center shadow-[0_10px_26px_rgba(26,92,58,.12)] backdrop-blur-md transition-all ${
+        active ? "border-white bg-white text-[#1A5C3A] ring-2 ring-white/80" : "border-white/60 bg-white/90 text-[#1A5C3A]"
+      }`}
+    >
+      <div className="font-tabular text-2xl font-bold leading-none">
+        {card.value}
+        {card.suffix && <span className="ml-0.5 text-sm font-normal text-[#1A5C3A]">{card.suffix}</span>}
+      </div>
+      <div className="mt-1 text-[11px] font-semibold text-[#3A7A5A]">{card.label}</div>
+    </button>
+  );
+}
+
+function StatDetailPanel({
+  card,
+  trend,
+  selectedDate,
+}: {
+  card: StatCardConfig;
+  trend: ReturnType<typeof getTrend>;
+  selectedDate: string;
+}) {
+  const todayValue = trend[trend.length - 1]?.value ?? null;
+  const validDays = trend.filter((point) => point.value !== null && point.value > 0).length;
+
+  return (
+    <div className="px-3.5 pt-3.5">
+      <div className="rounded-[22px] border border-white bg-white p-4 shadow-card">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-base font-black text-[#21382E]">{card.label}趋势</div>
+            <div className="mt-1 text-xs font-semibold text-[#7A8B80]">近 7 天 · 截至 {selectedDate}</div>
+          </div>
+          <div className="rounded-full bg-[#F0FAF6] px-3 py-1 text-xs font-black text-[#2F9B73]">
+            {formatMetricValue(todayValue, card.key, card.unit)}
+          </div>
+        </div>
+        <TrendChart data={trend} type={card.chart} tone={card.tone} metric={card.key} unit={card.unit} />
+        <div className="mt-2 text-xs font-semibold text-[#7A8B80]">
+          {validDays > 0 ? `近 7 天中有 ${validDays} 天记录了${card.label}。` : `近 7 天还没有${card.label}记录。`}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface SwipeableItemProps {
@@ -321,9 +548,10 @@ export default function RecordPage() {
   const navigate = useNavigate();
   const { baby } = useBaby();
   const { preferences } = useCarePreferences(baby);
-  const [records, setRecords] = useState<BabyRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<BabyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(getLocalDateString);
+  const [selectedMetric, setSelectedMetric] = useState<StatMetric | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [toast, setToast] = useState<{ message: string; undoFn?: () => void } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -331,12 +559,13 @@ export default function RecordPage() {
   useEffect(() => {
     if (!baby) return;
     setLoading(true);
-    fetchRecords(baby.id, selectedDate)
-      .then(setRecords)
+    fetchRecords(baby.id)
+      .then(setAllRecords)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [baby, selectedDate]);
+  }, [baby]);
 
+  const records = useMemo(() => recordsForDate(allRecords, selectedDate), [allRecords, selectedDate]);
   const stats = useMemo(() => calcStats(records), [records]);
   const alerts = useMemo(() => getCareAlerts(records, preferences), [records, preferences]);
   const visibleCareCount = useMemo(() => records.filter((record) =>
@@ -362,7 +591,7 @@ export default function RecordPage() {
 
     try {
       await deleteRecord(id);
-      setRecords(prev => prev.filter(r => r.id !== id));
+      setAllRecords(prev => prev.filter(r => r.id !== id));
       showToast("已删除");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "删除失败，请稍后重试");
@@ -378,6 +607,31 @@ export default function RecordPage() {
       setSelectedDate(prev => addDays(prev, 1));
     }
   };
+
+  const statCards = useMemo<StatCardConfig[]>(() => {
+    const cards: StatCardConfig[] = [
+      { key: "breast", value: loading ? "--" : `${stats.breastCount}`, label: "母乳", suffix: loading ? undefined : "次", tone: "#C95F7B", chart: "bar", unit: "次" },
+      { key: "formula", value: loading ? "--" : `${stats.formulaMl}`, label: "配方奶", suffix: loading ? undefined : "ml", tone: "#4D92D8", chart: "bar", unit: "ml" },
+      { key: "sleep", value: loading ? "--" : formatMinutes(stats.sleepMinutes), label: "睡眠", tone: "#7C6AD8", chart: "bar", unit: "分钟" },
+      { key: "urine", value: loading ? "--" : `${stats.urineCount}`, label: "小便", suffix: loading ? undefined : "次", tone: "#349FD5", chart: "bar", unit: "次" },
+      { key: "stool", value: loading ? "--" : `${stats.stoolCount}`, label: "大便", suffix: loading ? undefined : "次", tone: "#A66B3D", chart: "bar", unit: "次" },
+    ];
+
+    if (preferences.temperatureShortcut) {
+      cards.push({ key: "temperature", value: loading || !latestTempValue ? "--" : `${latestTempValue}`, label: "体温", suffix: loading || !latestTempValue ? undefined : "°C", tone: "#D66B4D", chart: "line", unit: "°C" });
+    }
+    if (preferences.jaundice) {
+      cards.push({ key: "jaundice", value: loading || !latestJaundiceValue ? "--" : `${latestJaundiceValue}`, label: "黄疸", tone: "#C88A17", chart: "line", unit: "" });
+    }
+    if (preferences.cordCare || preferences.bathTouch) {
+      cards.push({ key: "care", value: loading ? "--" : `${visibleCareCount}`, label: "护理", suffix: loading ? undefined : "次", tone: "#2F9B73", chart: "bar", unit: "次" });
+    }
+    cards.push({ key: "medicine", value: loading ? "--" : `${stats.medicineCount}`, label: "用药", suffix: loading ? undefined : "次", tone: "#D06A7A", chart: "bar", unit: "次" });
+    return cards;
+  }, [latestJaundiceValue, latestTempValue, loading, preferences.bathTouch, preferences.cordCare, preferences.jaundice, preferences.temperatureShortcut, stats.breastCount, stats.formulaMl, stats.medicineCount, stats.sleepMinutes, stats.stoolCount, stats.urineCount, visibleCareCount]);
+
+  const activeMetricCard = statCards.find((card) => card.key === selectedMetric) ?? null;
+  const activeTrend = useMemo(() => activeMetricCard ? getTrend(allRecords, selectedDate, activeMetricCard.key) : [], [activeMetricCard, allRecords, selectedDate]);
 
   if (!baby) {
     return (
@@ -396,21 +650,14 @@ export default function RecordPage() {
           <div className="header-title flex-1">记录</div>
         </div>
         <div className="relative z-10 mt-3 grid grid-cols-6 gap-2">
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.breastCount}`} label="母乳" suffix={loading ? undefined : "次"} />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.formulaMl}`} label="配方奶" suffix={loading ? undefined : "ml"} />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : formatMinutes(stats.sleepMinutes)} label="睡眠" />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.urineCount}`} label="小便" suffix={loading ? undefined : "次"} />
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.stoolCount}`} label="大便" suffix={loading ? undefined : "次"} />
-          {preferences.temperatureShortcut ? (
-            <HeroStatCard className="col-span-2" value={loading ? "--" : latestTempValue ? `${latestTempValue}` : "--"} label="体温" suffix={loading || !latestTempValue ? undefined : "°C"} />
-          ) : null}
-          {preferences.jaundice ? (
-            <HeroStatCard className="col-span-2" value={loading ? "--" : latestJaundiceValue ? `${latestJaundiceValue}` : "--"} label="黄疸" />
-          ) : null}
-          {preferences.cordCare || preferences.bathTouch ? (
-            <HeroStatCard className="col-span-2" value={loading ? "--" : `${visibleCareCount}`} label="护理" suffix={loading ? undefined : "次"} />
-          ) : null}
-          <HeroStatCard className="col-span-2" value={loading ? "--" : `${stats.medicineCount}`} label="用药" suffix={loading ? undefined : "次"} />
+          {statCards.map((card) => (
+            <RecordStatCard
+              key={card.key}
+              card={card}
+              active={selectedMetric === card.key}
+              onClick={() => setSelectedMetric((current) => current === card.key ? null : card.key)}
+            />
+          ))}
         </div>
       </Hero>
 
@@ -454,6 +701,10 @@ export default function RecordPage() {
           <div className="flex items-center justify-center py-20 text-gray-400 text-sm">加载中…</div>
         ) : (
           <>
+            {activeMetricCard ? (
+              <StatDetailPanel card={activeMetricCard} trend={activeTrend} selectedDate={selectedDate} />
+            ) : null}
+
             {alerts.length > 0 ? (
               <div className="px-3.5 pt-3.5">
                 <div className="rounded-[20px] border border-[#F3E0B5] bg-[#FFF8E8] px-4 py-3 text-sm leading-6 text-[#8A6220] shadow-card">
@@ -479,12 +730,13 @@ export default function RecordPage() {
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                 <div className="text-5xl mb-4 opacity-40">📝</div>
                 <div className="text-sm font-medium text-gray-600 mb-1">暂无记录</div>
-                <div className="text-xs text-gray-400">点击底部中间的 + 开始记录</div>
+                <div className="text-xs text-gray-400">点击右下角 + 开始记录</div>
               </div>
             )}
           </>
         )}
       </ScrollArea>
+      <Fab onClick={() => navigate("/record/add")} />
       <BottomNav />
 
       {toast && (

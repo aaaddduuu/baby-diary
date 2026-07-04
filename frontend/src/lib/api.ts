@@ -50,10 +50,14 @@ export interface MomentPhoto {
   id: number;
   moment_id: number;
   content_type: string;
+  media_kind?: "image" | "video" | "live_photo";
+  motion_content_type?: string | null;
+  motion_size_bytes?: number | null;
   size_bytes: number;
   sort_order: number;
   created_at: string;
   path: string;
+  motion_path?: string | null;
 }
 
 export interface DailyMoment {
@@ -471,6 +475,27 @@ export async function uploadMomentPhoto(momentId: number, photo: Blob): Promise<
     throw new Error("媒体上传响应异常");
   }
   if (!json.success) throw new Error(json.message || "媒体上传失败");
+  return json.data;
+}
+
+export async function uploadMomentLivePhoto(momentId: number, cover: Blob, motion: Blob): Promise<MomentPhoto> {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("cover", cover, "cover.jpg");
+  formData.append("motion", motion, "motion.mov");
+  const res = await fetch(`${BASE}/moments/${momentId}/live-photos`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+  const text = await res.text();
+  let json: ApiResponse<MomentPhoto>;
+  try {
+    json = JSON.parse(text) as ApiResponse<MomentPhoto>;
+  } catch {
+    throw new Error("实况照片上传响应异常");
+  }
+  if (!json.success) throw new Error(json.message || "实况照片上传失败");
   return json.data;
 }
 

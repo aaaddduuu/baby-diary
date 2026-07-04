@@ -26,6 +26,10 @@ type PhotoRow = {
   moment_id: number;
   r2_key: string;
   content_type: string;
+  media_kind?: "image" | "video" | "live_photo" | null;
+  motion_r2_key?: string | null;
+  motion_content_type?: string | null;
+  motion_size_bytes?: number | null;
   size_bytes: number;
   sort_order: number;
   created_at: string;
@@ -81,6 +85,12 @@ function shareUnavailableReason(share: ShareRow): string | null {
   return null;
 }
 
+function deriveMediaKind(photo: PhotoRow): "image" | "video" | "live_photo" {
+  if (photo.media_kind === "live_photo") return "live_photo";
+  if (photo.media_kind === "video" || photo.content_type.startsWith("video/")) return "video";
+  return "image";
+}
+
 sharedMoments.get("/:token", async (c) => {
   try {
     const token = c.req.param("token");
@@ -130,10 +140,14 @@ sharedMoments.get("/:token", async (c) => {
             id: photo.id,
             moment_id: photo.moment_id,
             content_type: photo.content_type,
+            media_kind: deriveMediaKind(photo),
+            motion_content_type: photo.motion_content_type || null,
+            motion_size_bytes: photo.motion_size_bytes || null,
             size_bytes: photo.size_bytes,
             sort_order: photo.sort_order,
             created_at: photo.created_at,
             path: `/shared-moments/${token}/photos/${photo.id}`,
+            motion_path: photo.motion_r2_key ? `/shared-moments/${token}/photos/${photo.id}/motion` : null,
           })),
         })),
       },
@@ -183,6 +197,48 @@ sharedMoments.get("/:token/photos/:photoId", async (c) => {
   } catch (error) {
     console.error(JSON.stringify({ message: "read shared moment photo failed", error: error instanceof Error ? error.message : String(error) }));
     return c.json({ success: false, data: null, message: "照片读取失败" }, 500);
+  }
+});
+
+sharedMoments.get("/:token/photos/:photoId/motion", async (c) => {
+  try {
+    const token = c.req.param("token");
+    const share = await loadShare(c.env.DB, token);
+    if (!share) {
+      return c.json({ success: false, data: null, message: "分享链接不存在" }, 404);
+    }
+    const unavailableReason = shareUnavailableReason(share);
+    if (unavailableReason) {
+      return c.json({ success: false, data: null, message: unavailableReason }, 410);
+    }
+
+    const photoId = Number(c.req.param("photoId"));
+    const photo = await c.env.DB.prepare(
+      `SELECT p.*
+       FROM daily_moment_photos p
+       JOIN daily_moments m ON m.id = p.moment_id
+       WHERE p.id = ? AND m.baby_id = ?`,
+    ).bind(photoId, share.baby_id).first<PhotoRow>();
+    if (!photo || !photo.motion_r2_key || !photo.motion_content_type) {
+      return c.json({ success: false, data: null, message: "实况动态不存在" }, 404);
+    }
+
+    const object = await c.env.MOMENT_PHOTOS.get(photo.motion_r2_key);
+    if (!object) {
+      return c.json({ success: false, data: null, message: "实况动态不存在" }, 404);
+    }
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("Content-Type", photo.motion_content_type);
+    headers.set("Content-Disposition", "inline");
+    headers.set("Cache-Control", "private, no-store");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    headers.set("ETag", object.httpEtag);
+    return new Response(object.body, { headers });
+  } catch (error) {
+    console.error(JSON.stringify({ message: "read shared moment motion failed", error: error instanceof Error ? error.message : String(error) }));
+    return c.json({ success: false, data: null, message: "实况动态读取失败" }, 500);
   }
 });
 

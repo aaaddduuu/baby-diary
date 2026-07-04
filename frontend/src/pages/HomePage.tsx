@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import Layout, { ScrollArea } from "../components/Layout";
+import Layout, { Fab, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import RecordTypeIcon, { getDiaperIconName, getDiaperLabel } from "../components/RecordTypeIcon";
 import type { RecordIconName } from "../components/RecordTypeIcon";
@@ -10,6 +10,13 @@ import { useBaby } from "../lib/BabyContext";
 import { isRecordTypeVisible, useCarePreferences } from "../lib/carePreferences";
 import { fetchExpenses, fetchFamily, fetchRecords, fetchVaccines } from "../lib/api";
 import type { BabyRecord, FamilyMember } from "../lib/api";
+import {
+  addDays as addCareDays,
+  calcCareStats,
+  formatDelta,
+  formatMinutes,
+  getRecordsForDate,
+} from "../lib/careInsights";
 import {
   ADD_RECORD_TYPES,
   CARE_ACTIONS,
@@ -340,12 +347,24 @@ function EmptyIllustration() {
   );
 }
 
+function OverviewTile({ icon, label, value, note }: { icon: RecordIconName; label: string; value: string; note: string }) {
+  return (
+    <div className="rounded-[22px] border border-white bg-white/90 p-3 shadow-soft">
+      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-[15px] bg-[#F0FAF6] text-[#2F9B73]">
+        <RecordTypeIcon name={icon} className="h-5 w-5" />
+      </div>
+      <div className="font-tabular text-[22px] font-black leading-none text-[#1A5C3A]">{value}</div>
+      <div className="mt-1 text-xs font-bold text-gray-700">{label}</div>
+      <div className="mt-1 text-[10px] font-semibold text-gray-400">{note}</div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { baby } = useBaby();
   const { preferences } = useCarePreferences(baby);
-  const [todayCount, setTodayCount] = useState(0);
   const [monthExpense, setMonthExpense] = useState(0);
   const [hasRecords, setHasRecords] = useState(false);
   const [allRecords, setAllRecords] = useState<BabyRecord[]>([]);
@@ -371,7 +390,6 @@ export default function HomePage() {
       fetchRecords(baby.id).then((records) => {
         setAllRecords(records);
         if (records.length > 0) setHasRecords(true);
-        setTodayCount(records.filter((record) => getRecordLocalDate(record.recorded_at) === today).length);
       }),
       fetchExpenses(baby.id, `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`).then((expenses) => {
         setMonthExpense(expenses.filter((expense) => expense.direction !== "income").reduce((sum, expense) => sum + expense.amount, 0));
@@ -415,6 +433,11 @@ export default function HomePage() {
     });
   }, [allRecords, preferences]);
 
+  const yesterday = addCareDays(today, -1);
+  const yesterdayRecords = useMemo(() => getRecordsForDate(allRecords, yesterday), [allRecords, yesterday]);
+  const todayStats = useMemo(() => calcCareStats(todayRecords), [todayRecords]);
+  const yesterdayStats = useMemo(() => calcCareStats(yesterdayRecords), [yesterdayRecords]);
+
   if (!baby || pageLoading) {
     return (
       <Layout>
@@ -426,24 +449,51 @@ export default function HomePage() {
   }
 
   const statCards = [
-    { icon: "calendar" as const, value: `${getElapsedCalendarDays(baby.birth_date)}`, suffix: "天", label: "出生天数", tone: "#2FA47E" },
-    { icon: "note" as const, value: `${todayCount}`, suffix: "次", label: "今日记录", tone: "#E77751" },
-    { icon: "wallet" as const, value: `¥${monthExpense.toLocaleString()}`, label: "本月花费", tone: "#8067D8" },
+    { icon: "bottle" as const, value: `${todayStats.feedCount}`, suffix: "次", label: "今日喂奶", tone: "#2FA47E", path: "/record" },
+    { icon: "milk" as const, value: `${todayStats.feedMl}`, suffix: "ml", label: "瓶喂奶量", tone: "#4D92D8", path: "/record" },
+    { icon: "moon" as const, value: formatMinutes(todayStats.sleepMinutes), label: "今日睡眠", tone: "#8067D8", path: "/care-stats" },
   ];
 
   const featureCards = [
     { icon: "chart" as const, label: "成长曲线", desc: "身高体重", path: "/growth", surface: "#D1FAE5", tone: "#059669" },
     { icon: "syringe" as const, label: "疫苗计划", desc: "近期提醒", path: "/vaccine", surface: "#DBEAFE", tone: "#2563EB", badge: upcomingVaccineCount },
-    { icon: "wallet" as const, label: "家庭账本", desc: "花费统计", path: "/expense", surface: "#FFEDD5", tone: "#EA580C" },
+    { icon: "wallet" as const, label: "家庭账本", desc: `本月 ¥${monthExpense.toLocaleString()}`, path: "/expense", surface: "#FFEDD5", tone: "#EA580C" },
     { icon: "user" as const, label: "我的空间", desc: "家庭成员", path: "/my", surface: "#EDE9FE", tone: "#7C3AED" },
+  ];
+
+  const overviewCards = [
+    {
+      icon: "breast_milk_bottle" as const,
+      label: "今日奶量",
+      value: `${todayStats.feedMl} ml`,
+      note: formatDelta(todayStats.feedMl - yesterdayStats.feedMl, "ml"),
+    },
+    {
+      icon: "breast_milk" as const,
+      label: "喂奶次数",
+      value: `${todayStats.feedCount} 次`,
+      note: formatDelta(todayStats.feedCount - yesterdayStats.feedCount, "次"),
+    },
+    {
+      icon: "diaper_wet" as const,
+      label: "换尿布",
+      value: `${todayStats.diaperWet + todayStats.diaperDirty} 次`,
+      note: formatDelta((todayStats.diaperWet + todayStats.diaperDirty) - (yesterdayStats.diaperWet + yesterdayStats.diaperDirty), "次"),
+    },
+    {
+      icon: "sleep" as const,
+      label: "睡眠时长",
+      value: formatMinutes(todayStats.sleepMinutes),
+      note: formatDelta(Math.round((todayStats.sleepMinutes - yesterdayStats.sleepMinutes) / 60), "小时"),
+    },
   ];
 
   return (
     <Layout className="bg-[radial-gradient(circle_at_18%_0%,#FFF4DF_0,transparent_34%),radial-gradient(circle_at_88%_18%,#DCF5EA_0,transparent_31%),var(--page-bg)]">
       <motion.div initial="hidden" animate="show" variants={pageVariants} className="flex min-h-0 flex-1 flex-col">
-        <div className="relative flex-shrink-0 overflow-hidden px-4 pb-5 pt-8">
-          <div className="absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" style={{ background: "var(--header-grad)" }} />
-          <div className="header-readable-overlay absolute inset-x-0 top-0 h-[250px] rounded-b-[34px]" />
+        <div className="relative flex-shrink-0 overflow-hidden px-4 pb-8 pt-8">
+          <div className="absolute inset-x-0 top-0 h-[264px] rounded-b-[34px]" style={{ background: "var(--header-grad)" }} />
+          <div className="header-readable-overlay absolute inset-x-0 top-0 h-[264px] rounded-b-[34px]" />
           <div className="absolute right-[-42px] top-8 h-36 w-36 rounded-full bg-white/18 blur-2xl" />
           <div className="absolute left-[-56px] top-24 h-32 w-32 rounded-full bg-[#1C6F52]/20 blur-2xl" />
 
@@ -474,7 +524,7 @@ export default function HomePage() {
               {statCards.map((card) => (
                 <button
                   key={card.label}
-                  onClick={() => (card.label === "本月花费" ? navigate("/expense") : navigate("/record"))}
+                  onClick={() => navigate(card.path)}
                   className="rounded-[22px] border border-white/60 bg-white/90 p-3 text-left shadow-[0_10px_26px_rgba(26,92,58,.12)] backdrop-blur-md"
                 >
                   <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-2xl bg-white/70" style={{ color: card.tone }}>
@@ -511,6 +561,15 @@ export default function HomePage() {
                     <div className="mt-2.5 text-xs font-black text-gray-700">{item.label}</div>
                     <div className="mt-1 min-h-[14px] text-[10px] font-semibold text-gray-400">{item.timeAgo || "快速填写"}</div>
                   </motion.button>
+                ))}
+              </div>
+            </motion.section>
+
+            <motion.section variants={sectionVariants} transition={{ duration: 0.38, ease: "easeOut" }}>
+              <SectionHeader title="今日概览" action="照护统计" onAction={() => navigate("/care-stats")} />
+              <div className="grid grid-cols-2 gap-3">
+                {overviewCards.map((card) => (
+                  <OverviewTile key={card.label} icon={card.icon} label={card.label} value={card.value} note={card.note} />
                 ))}
               </div>
             </motion.section>
@@ -626,6 +685,7 @@ export default function HomePage() {
           </div>
         </ScrollArea>
       </motion.div>
+      <Fab onClick={() => navigate("/record/add")} />
       <BottomNav />
     </Layout>
   );

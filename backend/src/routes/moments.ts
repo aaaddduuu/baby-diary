@@ -29,6 +29,10 @@ type PhotoRow = {
   moment_id: number;
   r2_key: string;
   content_type: string;
+  media_kind?: "image" | "video" | "live_photo" | null;
+  motion_r2_key?: string | null;
+  motion_content_type?: string | null;
+  motion_size_bytes?: number | null;
   size_bytes: number;
   sort_order: number;
   created_at: string;
@@ -102,6 +106,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isUploadedFile(value: unknown): value is File {
+  return typeof value === "object"
+    && value !== null
+    && "type" in value
+    && "size" in value
+    && "stream" in value
+    && typeof value.type === "string"
+    && typeof value.size === "number"
+    && typeof value.stream === "function";
+}
+
 function normalizeNote(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const note = value.trim();
@@ -112,6 +127,16 @@ function photoPath(photoId: number): string {
   return `/moments/photos/${photoId}`;
 }
 
+function photoMotionPath(photoId: number): string {
+  return `/moments/photos/${photoId}/motion`;
+}
+
+function deriveMediaKind(photo: PhotoRow): "image" | "video" | "live_photo" {
+  if (photo.media_kind === "live_photo") return "live_photo";
+  if (photo.media_kind === "video" || photo.content_type.startsWith("video/")) return "video";
+  return "image";
+}
+
 function serializeMoment(moment: MomentRow, photos: PhotoRow[]) {
   return {
     ...moment,
@@ -119,10 +144,14 @@ function serializeMoment(moment: MomentRow, photos: PhotoRow[]) {
       id: photo.id,
       moment_id: photo.moment_id,
       content_type: photo.content_type,
+      media_kind: deriveMediaKind(photo),
+      motion_content_type: photo.motion_content_type || null,
+      motion_size_bytes: photo.motion_size_bytes || null,
       size_bytes: photo.size_bytes,
       sort_order: photo.sort_order,
       created_at: photo.created_at,
       path: photoPath(photo.id),
+      motion_path: photo.motion_r2_key ? photoMotionPath(photo.id) : null,
     })),
   };
 }
@@ -369,6 +398,7 @@ moments.post("/:id/photos", async (c) => {
       return c.json({ success: false, data: null, message: "每天最多上传 9 个图片或视频" }, 409);
     }
 
+    const mediaKind = isVideo ? "video" : "image";
     const key = `babies/${moment.baby_id}/moments/${momentId}/${crypto.randomUUID()}`;
     const stored = await c.env.MOMENT_PHOTOS.put(key, c.req.raw.body, {
       httpMetadata: { contentType, cacheControl: "private, max-age=86400" },
@@ -381,8 +411,8 @@ moments.post("/:id/photos", async (c) => {
     const sortOrder = Number(count?.total || 0);
     try {
       const result = await c.env.DB.prepare(
-        "INSERT INTO daily_moment_photos (moment_id, r2_key, content_type, size_bytes, sort_order) VALUES (?, ?, ?, ?, ?)",
-      ).bind(momentId, key, contentType, stored.size, sortOrder).run();
+        "INSERT INTO daily_moment_photos (moment_id, r2_key, content_type, media_kind, size_bytes, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+      ).bind(momentId, key, contentType, mediaKind, stored.size, sortOrder).run();
       const photoId = Number(result.meta.last_row_id);
       return c.json({
         success: true,
@@ -390,9 +420,13 @@ moments.post("/:id/photos", async (c) => {
           id: photoId,
           moment_id: momentId,
           content_type: contentType,
+          media_kind: mediaKind,
+          motion_content_type: null,
+          motion_size_bytes: null,
           size_bytes: stored.size,
           sort_order: sortOrder,
           path: photoPath(photoId),
+          motion_path: null,
         },
       }, 201);
     } catch (error) {
@@ -402,6 +436,99 @@ moments.post("/:id/photos", async (c) => {
   } catch (error) {
     console.error(JSON.stringify({ message: "upload moment photo failed", error: error instanceof Error ? error.message : String(error) }));
     return c.json({ success: false, data: null, message: "媒体上传失败" }, 500);
+  }
+});
+
+moments.post("/:id/live-photos", async (c) => {
+  try {
+    const momentId = Number(c.req.param("id"));
+    const moment = await getMoment(c.env.DB, momentId);
+    if (!moment) {
+      return c.json({ success: false, data: null, message: "时光记录不存在" }, 404);
+    }
+    if (!(await checkBabyAccess(c.env.DB, c.get("userId"), moment.baby_id))) {
+      return c.json({ success: false, data: null, message: "无权限" }, 403);
+    }
+
+    const count = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS total FROM daily_moment_photos WHERE moment_id = ?",
+    ).bind(momentId).first<{ total: number }>();
+    if (Number(count?.total || 0) >= MAX_PHOTOS_PER_MOMENT) {
+      return c.json({ success: false, data: null, message: "每天最多上传 9 个图片或视频" }, 409);
+    }
+
+    const form = await c.req.formData();
+    const cover = form.get("cover");
+    const motion = form.get("motion");
+    if (!isUploadedFile(cover) || !isUploadedFile(motion)) {
+      return c.json({ success: false, data: null, message: "请选择实况封面和动态片段" }, 400);
+    }
+
+    const coverType = (cover.type || "").split(";")[0].toLowerCase();
+    const motionType = (motion.type || "").split(";")[0].toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(coverType)) {
+      return c.json({ success: false, data: null, message: "实况封面必须是图片" }, 415);
+    }
+    if (!ALLOWED_VIDEO_TYPES.has(motionType)) {
+      return c.json({ success: false, data: null, message: "实况动态片段必须是视频" }, 415);
+    }
+    if (cover.size <= 0 || cover.size > MAX_PHOTO_BYTES) {
+      return c.json({ success: false, data: null, message: "实况封面不能超过 10MB" }, 413);
+    }
+    if (motion.size <= 0 || motion.size > MAX_VIDEO_BYTES) {
+      return c.json({ success: false, data: null, message: "实况动态片段不能超过 80MB" }, 413);
+    }
+
+    const baseKey = `babies/${moment.baby_id}/moments/${momentId}/${crypto.randomUUID()}`;
+    const coverKey = `${baseKey}/cover`;
+    const motionKey = `${baseKey}/motion`;
+    const coverStored = await c.env.MOMENT_PHOTOS.put(coverKey, cover.stream(), {
+      httpMetadata: { contentType: coverType, cacheControl: "private, max-age=86400" },
+      customMetadata: { momentId: String(momentId), babyId: String(moment.baby_id), mediaKind: "live_photo", role: "cover" },
+    });
+    if (!coverStored) {
+      return c.json({ success: false, data: null, message: "实况封面上传失败" }, 500);
+    }
+
+    const motionStored = await c.env.MOMENT_PHOTOS.put(motionKey, motion.stream(), {
+      httpMetadata: { contentType: motionType, cacheControl: "private, max-age=86400" },
+      customMetadata: { momentId: String(momentId), babyId: String(moment.baby_id), mediaKind: "live_photo", role: "motion" },
+    });
+    if (!motionStored) {
+      await c.env.MOMENT_PHOTOS.delete(coverKey);
+      return c.json({ success: false, data: null, message: "实况动态片段上传失败" }, 500);
+    }
+
+    const sortOrder = Number(count?.total || 0);
+    try {
+      const result = await c.env.DB.prepare(
+        `INSERT INTO daily_moment_photos
+          (moment_id, r2_key, content_type, media_kind, motion_r2_key, motion_content_type, motion_size_bytes, size_bytes, sort_order)
+         VALUES (?, ?, ?, 'live_photo', ?, ?, ?, ?, ?)`,
+      ).bind(momentId, coverKey, coverType, motionKey, motionType, motionStored.size, coverStored.size, sortOrder).run();
+      const photoId = Number(result.meta.last_row_id);
+      return c.json({
+        success: true,
+        data: {
+          id: photoId,
+          moment_id: momentId,
+          content_type: coverType,
+          media_kind: "live_photo",
+          motion_content_type: motionType,
+          motion_size_bytes: motionStored.size,
+          size_bytes: coverStored.size,
+          sort_order: sortOrder,
+          path: photoPath(photoId),
+          motion_path: photoMotionPath(photoId),
+        },
+      }, 201);
+    } catch (error) {
+      await c.env.MOMENT_PHOTOS.delete([coverKey, motionKey]);
+      throw error;
+    }
+  } catch (error) {
+    console.error(JSON.stringify({ message: "upload live moment photo failed", error: error instanceof Error ? error.message : String(error) }));
+    return c.json({ success: false, data: null, message: "实况照片上传失败" }, 500);
   }
 });
 
@@ -436,6 +563,38 @@ moments.get("/photos/:photoId", async (c) => {
   }
 });
 
+moments.get("/photos/:photoId/motion", async (c) => {
+  try {
+    const photoId = Number(c.req.param("photoId"));
+    const photo = await c.env.DB.prepare(
+      `SELECT p.*, m.baby_id
+       FROM daily_moment_photos p
+       JOIN daily_moments m ON m.id = p.moment_id
+       WHERE p.id = ?`,
+    ).bind(photoId).first<PhotoRow & { baby_id: number }>();
+    if (!photo || !photo.motion_r2_key || !photo.motion_content_type) {
+      return c.json({ success: false, data: null, message: "实况动态不存在" }, 404);
+    }
+    if (!(await checkBabyAccess(c.env.DB, c.get("userId"), photo.baby_id))) {
+      return c.json({ success: false, data: null, message: "无权限" }, 403);
+    }
+
+    const object = await c.env.MOMENT_PHOTOS.get(photo.motion_r2_key);
+    if (!object) {
+      return c.json({ success: false, data: null, message: "实况动态不存在" }, 404);
+    }
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("Content-Type", photo.motion_content_type);
+    headers.set("ETag", object.httpEtag);
+    headers.set("Cache-Control", "private, max-age=86400");
+    return new Response(object.body, { headers });
+  } catch (error) {
+    console.error(JSON.stringify({ message: "read live moment motion failed", error: error instanceof Error ? error.message : String(error) }));
+    return c.json({ success: false, data: null, message: "实况动态读取失败" }, 500);
+  }
+});
+
 moments.delete("/photos/:photoId", async (c) => {
   try {
     const photoId = Number(c.req.param("photoId"));
@@ -453,7 +612,7 @@ moments.delete("/photos/:photoId", async (c) => {
     }
 
     await c.env.DB.prepare("DELETE FROM daily_moment_photos WHERE id = ?").bind(photoId).run();
-    await c.env.MOMENT_PHOTOS.delete(photo.r2_key);
+    await c.env.MOMENT_PHOTOS.delete(photo.motion_r2_key ? [photo.r2_key, photo.motion_r2_key] : photo.r2_key);
     return c.json({ success: true, data: { id: photoId } });
   } catch (error) {
     console.error(JSON.stringify({ message: "delete moment photo failed", error: error instanceof Error ? error.message : String(error) }));

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Layout, { Hero, HeroStatCard, ScrollArea } from "../components/Layout";
+import Layout, { Fab, Hero, HeroStatCard, ScrollArea } from "../components/Layout";
 import BottomNav from "../components/BottomNav";
 import { useBaby } from "../lib/BabyContext";
 import { useAuth } from "../lib/AuthContext";
@@ -325,6 +325,7 @@ export default function MyPage() {
 
         <div className="h-3.5" />
       </ScrollArea>
+      <Fab onClick={() => navigate("/record/add")} />
       <BottomNav />
     </Layout>
   );

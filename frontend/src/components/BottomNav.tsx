@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 
-type IconName = "home" | "record" | "wallet" | "user";
+type IconName = "home" | "record" | "wallet" | "chart" | "user";
 
-const tabs: Array<{ label: string; path: string; icon: IconName } | { type: "fab"; path: string }> = [
+const tabs: Array<{ label: string; path: string; icon: IconName }> = [
   { label: "首页", path: "/home", icon: "home" },
   { label: "记录", path: "/record", icon: "record" },
-  { type: "fab", path: "/record/add" },
   { label: "记账", path: "/expense", icon: "wallet" },
+  { label: "统计", path: "/care-stats", icon: "chart" },
   { label: "我的", path: "/my", icon: "user" },
 ];
 
@@ -29,6 +29,18 @@ function NavIcon({ name, active }: { name: IconName; active: boolean }) {
         <path d="m3 10 9-7 9 7" />
         <path d="M5 9v11h14V9" />
         <path d="M9 20v-6h6v6" />
+      </svg>
+    );
+  }
+
+  if (name === "chart") {
+    return (
+      <svg {...common}>
+        <path d="M4 19V5" />
+        <path d="M4 19h16" />
+        <path d="M8 16V9" />
+        <path d="M12 16V7" />
+        <path d="M16 16v-5" />
       </svg>
     );
   }
@@ -63,28 +75,10 @@ function NavIcon({ name, active }: { name: IconName; active: boolean }) {
 
 export default function BottomNav() {
   const { pathname } = useLocation();
-  const inMoments = pathname.startsWith("/moments");
 
   return (
     <nav className="relative flex flex-shrink-0 items-end border-t border-white/70 bg-white/82 px-2 pb-3 pt-2 backdrop-blur-[22px] shadow-[0_-14px_34px_rgba(57,87,70,.08)]">
       {tabs.map((tab, index) => {
-        if ("type" in tab) {
-          const targetPath = inMoments ? "/moments/new" : tab.path;
-          return (
-            <Link
-              key="add-record"
-              to={targetPath}
-              className="relative flex flex-1 flex-col items-center justify-end border-none bg-transparent py-1 font-sans no-underline"
-              aria-label={inMoments ? "新增成长时光" : "新增记录"}
-            >
-              <div className="absolute bottom-[20px] flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-white bg-[#2D9B6A] text-[32px] font-light leading-none text-white shadow-[0_8px_20px_rgba(45,155,106,.28)]">
-                +
-              </div>
-              <div className="h-[31px]" aria-hidden="true" />
-            </Link>
-          );
-        }
-
         const active = pathname === tab.path || pathname.startsWith(tab.path + "/");
 
         return (

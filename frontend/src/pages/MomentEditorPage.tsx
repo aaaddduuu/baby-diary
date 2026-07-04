@@ -12,6 +12,7 @@ import {
   fetchMoment,
   fetchMoments,
   updateMoment,
+  uploadMomentLivePhoto,
   uploadMomentPhoto,
 } from "../lib/api";
 import type { MomentPhoto } from "../lib/api";
@@ -20,10 +21,24 @@ type PendingPhoto = {
   id: string;
   file: File;
   preview: string;
+  kind: "image" | "video" | "live_photo";
+  cover?: Blob;
 };
 
 function isVideoFile(file: File): boolean {
   return file.type.startsWith("video/");
+}
+
+function mediaBadgeForPhoto(photo: MomentPhoto): string {
+  if (photo.media_kind === "live_photo") return "实况";
+  if (photo.media_kind === "video" || (!photo.media_kind && photo.content_type.startsWith("video/"))) return "视频";
+  return "";
+}
+
+function mediaBadgeForPending(photo: PendingPhoto): string {
+  if (photo.kind === "live_photo") return "实况";
+  if (photo.kind === "video") return "视频";
+  return "";
 }
 
 function localDateString(date = new Date()): string {
@@ -67,6 +82,49 @@ async function compressPhoto(file: File): Promise<Blob> {
       throw new Error("这张 HEIC 照片暂时无法转换，请先在相册中转成 JPEG 后再上传");
     }
     return file;
+  }
+}
+
+async function createVideoPoster(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const video = document.createElement("video");
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve();
+      video.onerror = () => reject(new Error("实况短片读取失败"));
+    });
+    if (Number.isFinite(video.duration) && video.duration > 0.2) {
+      await new Promise<void>((resolve, reject) => {
+        video.onseeked = () => resolve();
+        video.onerror = () => reject(new Error("实况封面生成失败"));
+        video.currentTime = 0.1;
+      });
+    } else if (video.readyState < 2) {
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error("实况封面生成失败"));
+      });
+    } else {
+      await Promise.resolve();
+    }
+    if (!video.videoWidth || !video.videoHeight) throw new Error("实况封面生成失败");
+    const canvas = document.createElement("canvas");
+    const maxEdge = 1800;
+    const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("实况封面生成失败");
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.84));
+    if (!blob) throw new Error("实况封面生成失败");
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -164,7 +222,7 @@ export default function MomentEditorPage() {
       .slice(0, slots);
     if (selected.length < files.length) {
       if (slots <= 0) {
-        setError("每天最多上传 9 个图片或视频");
+        setError("每天最多上传 9 个图片、实况或视频");
       } else if (accepted.length < files.length) {
         setError(`已忽略不支持的文件，只保留前 ${selected.length} 个图片或视频`);
       } else {
@@ -173,8 +231,42 @@ export default function MomentEditorPage() {
     }
     setPendingPhotos((current) => [
       ...current,
-      ...selected.map((file) => ({ id: crypto.randomUUID(), file, preview: URL.createObjectURL(file) })),
+      ...selected.map((file) => ({ id: crypto.randomUUID(), file, preview: URL.createObjectURL(file), kind: isVideoFile(file) ? "video" as const : "image" as const })),
     ]);
+  };
+
+  const handleLiveFiles = async (files: FileList | null) => {
+    if (!files) return;
+    setError("");
+    const slots = 9 - totalPhotos;
+    if (slots <= 0) {
+      setError("每天最多上传 9 个图片、实况或视频");
+      return;
+    }
+    const accepted = Array.from(files).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
+    const selected = accepted.slice(0, slots);
+    if (selected.length === 0) {
+      setError("请选择照片图库里的图片或实况短片");
+      return;
+    }
+    try {
+      const livePhotos = await Promise.all(selected.map(async (file) => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+        kind: isVideoFile(file) ? "live_photo" as const : "image" as const,
+        cover: isVideoFile(file) ? await createVideoPoster(file) : undefined,
+      })));
+      setPendingPhotos((current) => [...current, ...livePhotos]);
+      const staticCount = selected.filter((file) => file.type.startsWith("image/")).length;
+      if (staticCount > 0) {
+        setError(`有 ${staticCount} 张照片没有动态片段，已按普通图片添加；需要动态效果时可在相册中“存储为视频”后再选。`);
+      } else if (selected.length < files.length) {
+        setError(`已保留前 ${selected.length} 个实况照片，每天最多 9 个`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "实况封面生成失败，请换一段视频再试");
+    }
   };
 
   const removePendingPhoto = (photoId: string) => {
@@ -250,8 +342,13 @@ export default function MomentEditorPage() {
       for (let index = 0; index < pendingPhotos.length; index += 1) {
         const photo = pendingPhotos[index];
         setProgress(`正在上传第 ${index + 1} / ${pendingPhotos.length} 个媒体…`);
-        const compressed = isVideoFile(photo.file) ? photo.file : await compressPhoto(photo.file);
-        await uploadMomentPhoto(moment.id, compressed);
+        if (photo.kind === "live_photo") {
+          if (!photo.cover) throw new Error("实况封面缺失，请重新选择");
+          await uploadMomentLivePhoto(moment.id, photo.cover, photo.file);
+        } else {
+          const compressed = photo.kind === "video" ? photo.file : await compressPhoto(photo.file);
+          await uploadMomentPhoto(moment.id, compressed);
+        }
         uploadedIds.add(photo.id);
       }
 
@@ -278,7 +375,7 @@ export default function MomentEditorPage() {
     <Layout className="secondary-page">
         <Header
           title={editing ? "编辑成长时光" : "记录成长时光"}
-          subtitle="图片、视频和一句话，就能留住这一天"
+          subtitle="图片、实况和视频，分开珍藏这一天"
           variant="hero"
           back
         />
@@ -303,7 +400,7 @@ export default function MomentEditorPage() {
           <SectionCard className="p-4">
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <div className="panel-title">{entryDate === today ? "今天的图片和视频" : "这一天的图片和视频"}</div>
+                <div className="panel-title">{entryDate === today ? "今天的图片、实况和视频" : "这一天的图片、实况和视频"}</div>
                 <div className="panel-note mt-1">支持多选，最多 9 个</div>
               </div>
               <div className="font-tabular text-xs font-bold text-[#6C8275]">{totalPhotos} / 9</div>
@@ -313,9 +410,17 @@ export default function MomentEditorPage() {
               <div className="mb-3 grid grid-cols-3 gap-2">
                 {visibleExistingPhotos.map((photo) => (
                   <div key={photo.id} className="relative aspect-square overflow-hidden rounded-[16px] bg-[#EEF2ED]">
-                    <PrivatePhoto path={photo.path} alt="已保存的宝宝媒体" contentType={photo.content_type} className="h-full w-full" />
-                    {photo.content_type.startsWith("video/") ? (
-                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+                    <PrivatePhoto
+                      path={photo.path}
+                      alt="已保存的宝宝媒体"
+                      contentType={photo.content_type}
+                      mediaKind={photo.media_kind}
+                      motionPath={photo.motion_path}
+                      motionContentType={photo.motion_content_type}
+                      className="h-full w-full"
+                    />
+                    {mediaBadgeForPhoto(photo) ? (
+                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">{mediaBadgeForPhoto(photo)}</div>
                     ) : null}
                     <button
                       type="button"
@@ -328,13 +433,13 @@ export default function MomentEditorPage() {
                 ))}
                 {pendingPhotos.map((photo) => (
                   <div key={photo.id} className="relative aspect-square overflow-hidden rounded-[16px] bg-[#EEF2ED]">
-                    {isVideoFile(photo.file) ? (
-                      <video src={photo.preview} className="h-full w-full object-cover" muted playsInline autoPlay loop preload="auto" aria-label="待上传的宝宝视频" />
+                    {photo.kind === "video" || photo.kind === "live_photo" ? (
+                      <video src={photo.preview} className="h-full w-full object-cover" muted playsInline autoPlay loop preload="auto" aria-label={photo.kind === "live_photo" ? "待上传的宝宝实况照片" : "待上传的宝宝视频"} />
                     ) : (
                       <img src={photo.preview} alt="待上传的宝宝照片" className="h-full w-full object-cover" />
                     )}
-                    {isVideoFile(photo.file) ? (
-                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+                    {mediaBadgeForPending(photo) ? (
+                      <div className="absolute left-1.5 top-1.5 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">{mediaBadgeForPending(photo)}</div>
                     ) : null}
                     <button
                       type="button"
@@ -356,7 +461,7 @@ export default function MomentEditorPage() {
 
             <label className={`flex min-h-[92px] cursor-pointer flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-4 text-center ${totalPhotos >= 9 ? "border-[#D8DED9] bg-[#F5F6F4] opacity-55" : "border-[#A9D9C5] bg-[#F1FAF6]"}`}>
               <span className="text-sm font-black text-[#2D805E]">从相册选择图片或视频</span>
-              <span className="mt-1 text-xs leading-5 text-[#6C8275]">图片会自动压缩；单个视频建议控制在 80MB 内</span>
+              <span className="mt-1 text-xs leading-5 text-[#6C8275]">普通视频会显示为视频，不会标成实况</span>
               <input
                 type="file"
                 multiple
@@ -364,6 +469,21 @@ export default function MomentEditorPage() {
                 accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-m4v"
                 onChange={(event) => {
                   handleFiles(event.target.files);
+                  event.target.value = "";
+                }}
+                className="hidden"
+              />
+            </label>
+            <label className={`mt-2 flex min-h-[78px] cursor-pointer flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-4 text-center ${totalPhotos >= 9 ? "border-[#D8DED9] bg-[#F5F6F4] opacity-55" : "border-[#D7C89A] bg-[#FFF9E8]"}`}>
+              <span className="text-sm font-black text-[#8A6D18]">添加实况照片</span>
+              <span className="mt-1 text-xs leading-5 text-[#7A6840]">可直接进照片图库选择；若只返回静态图，会按普通图片保存</span>
+              <input
+                type="file"
+                multiple
+                disabled={totalPhotos >= 9}
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm,video/x-m4v"
+                onChange={(event) => {
+                  void handleLiveFiles(event.target.files);
                   event.target.value = "";
                 }}
                 className="hidden"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import Layout, { ScrollArea } from "../components/Layout";
+import Layout, { Fab, ScrollArea } from "../components/Layout";
 import MomentShareSheet from "../components/MomentShareSheet";
 import PrivatePhoto from "../components/PrivatePhoto";
 import { useBaby } from "../lib/BabyContext";
@@ -33,7 +33,17 @@ function calcBabyDay(birthDate: string, entryDate: string): number {
 }
 
 function isVideoPhoto(photo: MomentPhoto): boolean {
-  return photo.content_type.startsWith("video/");
+  return photo.media_kind === "video" || (!photo.media_kind && photo.content_type.startsWith("video/"));
+}
+
+function isLivePhoto(photo: MomentPhoto): boolean {
+  return photo.media_kind === "live_photo";
+}
+
+function mediaBadge(photo: MomentPhoto): string {
+  if (isLivePhoto(photo)) return "实况";
+  if (isVideoPhoto(photo)) return "视频";
+  return "";
 }
 
 function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index: number) => void }) {
@@ -46,6 +56,9 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
         path={visible[0].path}
         alt="宝宝当天的照片"
         contentType={visible[0].content_type}
+        mediaKind={visible[0].media_kind}
+        motionPath={visible[0].motion_path}
+        motionContentType={visible[0].motion_content_type}
         onClick={() => onOpen(0)}
         className="aspect-[4/3] w-full rounded-[20px]"
       />
@@ -60,11 +73,14 @@ function PhotoMosaic({ photos, onOpen }: { photos: MomentPhoto[]; onOpen: (index
             path={photo.path}
             alt={`宝宝当天的第 ${index + 1} 张照片`}
             contentType={photo.content_type}
+            mediaKind={photo.media_kind}
+            motionPath={photo.motion_path}
+            motionContentType={photo.motion_content_type}
             onClick={() => onOpen(index)}
             className="h-full w-full"
           />
-          {isVideoPhoto(photo) ? (
-            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">视频</div>
+          {mediaBadge(photo) ? (
+            <div className="absolute left-2 top-2 rounded-pill bg-black/55 px-2 py-1 text-[10px] font-bold text-white">{mediaBadge(photo)}</div>
           ) : null}
           {index === 3 && photos.length > 4 ? (
             <button
@@ -100,7 +116,9 @@ function PhotoViewer({ photos, index, onChange, onClose }: {
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center px-2">
         {isVideoPhoto(photo) ? (
-          <PrivatePhoto path={photo.path} alt={`宝宝视频 ${index + 1}`} contentType={photo.content_type} videoControls className="max-h-full w-full rounded-[12px] object-contain" />
+          <PrivatePhoto path={photo.path} alt={`宝宝视频 ${index + 1}`} contentType={photo.content_type} mediaKind={photo.media_kind} videoControls className="max-h-full w-full rounded-[12px] object-contain" />
+        ) : isLivePhoto(photo) ? (
+          <PrivatePhoto path={photo.path} alt={`宝宝实况 ${index + 1}`} contentType={photo.content_type} mediaKind={photo.media_kind} motionPath={photo.motion_path} motionContentType={photo.motion_content_type} videoControls className="max-h-full w-full rounded-[12px] object-contain" />
         ) : (
           <PrivatePhoto path={photo.path} alt={`宝宝照片 ${index + 1}`} contentType={photo.content_type} className="max-h-full w-full rounded-[12px] object-contain" />
         )}
@@ -224,7 +242,7 @@ export default function MomentsPage() {
           ) : moments.length === 0 ? (
             <div className="rounded-[28px] border border-white bg-white/90 px-6 py-10 text-center shadow-soft">
               <div className="text-xl font-black text-[#21382E]">这个月还没有留下媒体</div>
-              <div className="mx-auto mt-2 max-w-[250px] text-sm leading-6 text-[#6B7C72]">选几张今天喜欢的图片或视频，写下一句当时最想记住的话。</div>
+              <div className="mx-auto mt-2 max-w-[250px] text-sm leading-6 text-[#6B7C72]">选几张今天喜欢的图片、实况或视频，写下一句当时最想记住的话。</div>
               <button
                 type="button"
                 onClick={() => navigate("/moments/new")}
@@ -286,6 +304,7 @@ export default function MomentsPage() {
           onClose={() => setShowShare(false)}
         />
       ) : null}
+      <Fab onClick={() => navigate("/moments/new")} />
     </Layout>
   );
 }
